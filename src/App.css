@@ -3,12 +3,7 @@
 }
 
 .App-logo {
-  margin-top: 5px;
-  margin-bottom: 5px;
-  margin-right: 5px;
-  margin-left: 5px;
-  height: 10vmin;
-  pointer-events: none;
+  height: 6vmin;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -18,18 +13,31 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  min-height: 20vh;
+  
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+
   color: white;
+  background-color: #282c34;
 }
 
-.App-link {
-  color: #61dafb;
+.App-header-branding {
+  width: 75%;
+  display: flex;
+  flex-direction: row;
+}
+
+.App-header-login {
+  margin-top: 10px;
+  margin-left: 10px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+
+  width: 25%;
+  display: flex;
+  flex-direction: row;
 }
 
 @keyframes App-logo-spin {
@@ -39,4 +47,56 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.login-form-container {
+  width: 100%;
+}
+.login-form-container .login-form {
+  display: flex;
+  flex-direction: column;
+}
+.login-form-container .login-form .button-box {
+  display: flex;
+  justify-content: space-between;
+}
+.login-form-container .login-form .button-box .primary-button {
+  width: 30%;
+}
+.login-form-container .login-form .login-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.primary-button {
+  background: #039be5;
+  color: #fff;
+  border: 0.1rem solid transparent;
+  outline: none;
+}
+.primary-button:hover {
+  opacity: 0.9;
+  background: #fff;
+  color: #039be5;
+  border: 0.1rem solid #039be5;
+}
+.secondary-button {
+  background: #e78936;
+  color: #fff;
+  border: 0.1rem solid transparent;
+  outline: none;
+}
+.primary-button,
+.secondary-button {
+  border-radius: 0.4rem;
+  font-size: 1rem;
+  padding: 0.25rem;
+  cursor: pointer;
+  margin: 0.25rem;
+  user-select: none;
+}
+.secondary-button:hover {
+  background: #fff;
+  color: #e78936;
+  border: 0.1rem solid #e78936;
 }

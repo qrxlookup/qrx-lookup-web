@@ -1,14 +1,25 @@
+import { useState } from 'react';
+import FirebaseAuthService from './FirebaseAuthService';
+import LoginForm from './Components/LoginForm';
+
 import logo from './logo.svg';
 import './App.css';
-// eslint-disable-next-line
-import firebase from './FirebaseConfig';
 
 function App() {
+  const [user, setUser] = useState(null);
+
+  FirebaseAuthService.subscribeToAuthChanges(setUser);
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>QRX Lookup!</p>
+        <div className='App-header-branding'>
+          <img src={logo} className="App-logo" alt="logo" />
+          <p>QRX Lookup!</p>
+        </div>
+        <div className='App-header-login'>
+          <LoginForm existingUser={user}></LoginForm>
+        </div>
       </header>
     </div>
   );
