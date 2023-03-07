@@ -24,6 +24,18 @@ const loginWithGoogle = (email, password) => {
     return auth.signInWithPopup(provider);
 }
 
+const loginWithFacebook = (email, password) => {
+    const provider = new firebase.auth.FacebookAuthProvider();
+
+    return auth.signInWithPopup(provider);
+}
+
+const loginWithTwitter = (email, password) => {
+    const provider = new firebase.auth.TwitterAuthProvider();
+
+    return auth.signInWithPopup(provider);
+}
+
 const subscribeToAuthChanges = (handleAuthChange) => {
     auth.onAuthStateChanged((user) => {
         handleAuthChange(user);
@@ -36,6 +48,7 @@ const FirebaseAuthService = {
     logoutUser,
     sendPasswordResetEmail,
     loginWithGoogle,
+    loginWithFacebook,
     subscribeToAuthChanges,
 };
 
