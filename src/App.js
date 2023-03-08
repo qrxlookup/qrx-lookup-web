@@ -102,7 +102,7 @@ function App() {
 
     FirebaseAuthService.subscribeToAuthChanges(setUser);
 
-    if (user) {
+    if (user && user.email !== contact.email) {
       setContact({
         ...contact,
         email: user.email,
@@ -116,7 +116,7 @@ function App() {
       throw error;
     })
 
-  }, [user, contact]);
+  }, [contact, user]);
 
   const band = currentContactSession? bands.find(elem => elem.value === currentContactSession.band): null;
   const freq = currentContactSession? bandFrequencies.find(elem => elem.value === currentContactSession.frequency): null;
