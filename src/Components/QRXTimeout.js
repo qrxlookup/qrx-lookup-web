@@ -1,11 +1,11 @@
 import { useEffect, useState, useContext } from "react";
 
 import { ContactContext } from '../App';
-import QRXLookupConfig from "../QRXLookupConfig";
 
 const SECOND = 1000;
 const MINUTE = SECOND * 60;
 const HOUR = MINUTE * 60;
+// eslint-disable-next-line no-unused-vars  
 const DAY = HOUR * 24;
 
 const QRXTimeout = ({ countDownDate }) => {
@@ -22,7 +22,7 @@ const QRXTimeout = ({ countDownDate }) => {
             );
             return () => clearInterval(interval);
         }, 
-        [contact]
+        [contact, countDownDate]
     );
 
     let countDown = <i>Run out of AirTime!!!</i>;

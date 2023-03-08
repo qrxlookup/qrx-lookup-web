@@ -49,6 +49,7 @@ const FirebaseAuthService = {
     sendPasswordResetEmail,
     loginWithGoogle,
     loginWithFacebook,
+    loginWithTwitter,
     subscribeToAuthChanges,
 };
 

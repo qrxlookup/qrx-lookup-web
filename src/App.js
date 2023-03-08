@@ -31,9 +31,10 @@ export const ContactSessionInitialState = {
 
 function App() {
 
-  const [user, setUser] = useState(null);
-  const [contact, setContact] = useState(ContactInitialState);
-  const [contacts, setContacts] = useState([]);
+  const [ user, setUser ] = useState(null);
+  const [ contact, setContact ] = useState(ContactInitialState);
+  // eslint-disable-next-line no-unused-vars
+  const [ contacts, setContacts ] = useState([]);
 
   const currentContactSession = contact.sessions.length > 0? contact.sessions[contact.sessions.length - 1]: null;
 
@@ -64,7 +65,7 @@ function App() {
       throw error;
     }
 
-    return fetchContacts;
+    return fetchedContacts;
   }
 
   async function handleFetchContacts() {
@@ -115,7 +116,7 @@ function App() {
       throw error;
     })
 
-  }, [user]);
+  }, [user, contact]);
 
   const band = currentContactSession? bands.find(elem => elem.value === currentContactSession.band): null;
   const freq = currentContactSession? bandFrequencies.find(elem => elem.value === currentContactSession.frequency): null;

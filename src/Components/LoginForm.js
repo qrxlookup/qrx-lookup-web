@@ -36,19 +36,19 @@ function LoginForm({ handleInitializeContact }) {
         }
     }
 
-    async function handleSendResetPasswordEmail() {
-        if (!username) {
-            alert("Missing username!");
-            return;
-        }
+    // async function handleSendResetPasswordEmail() {
+    //     if (!username) {
+    //         alert("Missing username!");
+    //         return;
+    //     }
 
-        try {
-            await FirebaseAuthService.sendPasswordResetEmail(username);
-            alert("Reset email sent to " + username);
-        } catch (error) {
-            alert(error.message);
-        }
-    }
+    //     try {
+    //         await FirebaseAuthService.sendPasswordResetEmail(username);
+    //         alert("Reset email sent to " + username);
+    //     } catch (error) {
+    //         alert(error.message);
+    //     }
+    // }
 
     async function handleLoginWithGoogle() {
         try {
