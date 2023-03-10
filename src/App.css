@@ -17,7 +17,7 @@ html {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem;
+  padding: 0.3rem;
   color: #fff;
   background: #282c34;
 }
@@ -39,17 +39,11 @@ html {
   align-items: flex-end;
   justify-content: center;
 }
-.App .header .header-left .logo {
-  height: 3rem;
-}
-.App .header .header-left .title {
-  font-size: 2rem;
-}
 .App .main {
   width: 100%;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-around;  
-  padding: 0.5rem;
+  padding: 0.3rem;
 }

@@ -2,8 +2,8 @@ import QRXLookupConfig from '../QRXLookupConfig';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 
 const styles = {
-    height: '34rem', 
-    width: '75%',
+    height: '35rem', 
+    // width: '75%',
     border: '0.1rem solid rgba(60, 64, 67, 0.3)',
     borderRadius: '0.3rem',
 };

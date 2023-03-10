@@ -2,6 +2,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
 import React, { useState, createContext, useEffect } from 'react';
+import { Container, Row, Col } from 'react-bootstrap';
 import FirebaseAuthService from './FirebaseAuthService';
 import QRXLookupConfig from './QRXLookupConfig';
 import LoginForm from './Components/LoginForm';
@@ -36,17 +37,12 @@ function App() {
   // eslint-disable-next-line no-unused-vars
   const [ contacts, setContacts ] = useState([]);
 
-  const currentContactSession = contact.sessions.length > 0? contact.sessions[contact.sessions.length - 1]: null;
+  const contactSessionLength = contact?.sessions?.length? contact.sessions.length: 0;
+  let currentContactSession = contactSessionLength > 0? contact.sessions[contactSessionLength - 1]: null;
 
   const bands = QRXLookupConfig.bands;
   const bandFrequencies = QRXLookupConfig.bandFrequencies;
   const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;
-
-  function handleInitializeContact() {
-    setContact({
-      ...ContactInitialState,
-    });
-  }
 
   async function fetchContacts() {
     let fetchedContacts = [];
@@ -102,11 +98,8 @@ function App() {
 
     FirebaseAuthService.subscribeToAuthChanges(setUser);
 
-    if (user && user.email !== contact.email) {
-      setContact({
-        ...contact,
-        email: user.email,
-      });
+    if (user?.email !== contact?.email) {
+      setContact({ ...contact, email: user?.email });
     }
 
     fetchContacts().then((fetchedContacts) => {
@@ -124,33 +117,35 @@ function App() {
 
   return (
     <ContactContext.Provider value={{ contact, setContact }}>
-      <div className="App">
-        <div className="header">
-          <div className='header-left'>
+      <Container className='App'>
+        <Row className='header'>
+          <Col className='header-left' sm>
             <p className="title">QRX Lookup</p>
             {currentContactSession? (
               <QRXTimeout countDownDate={currentContactSession.checkOut} />
             ) : (null)}
-          </div>
-          <div className='header-center'>
-            <div>
-              <h2 style={{ color: '#ffff00' }}>{freq ? freq.label : null}</h2>
-              <i>{band ? band.label : null} {tone ? "| " + tone.label : null}</i>
-            </div>
-          </div>
-          <div className='header-right'>
-            <LoginForm handleInitializeContact={handleInitializeContact}></LoginForm>
-          </div>
-        </div>
-        <div className='main'>
-          {user? (          
-            <AddEditContactForm handleAddContact={handleAddContact}/>
-          ) : (null)}
-          {currentContactSession? (
-            <QRXRadar contactSession={currentContactSession} />
-          ) : (null)}
-        </div>
-      </div>
+          </Col>
+          <Col className='header-center' sm>
+            <h2 style={{ color: '#ffff00' }}>{freq ? freq.label : null}</h2>
+            <i>{band ? band.label : null} {tone ? "| " + tone.label : null}</i>
+          </Col>
+          <Col className='header-right' sm>
+            <LoginForm />
+          </Col>
+        </Row>
+        <Row className='main'>
+          <Col sm='3'>
+            {user? (          
+              <AddEditContactForm handleAddContact={handleAddContact}/>
+            ) : (null)}
+          </Col>
+          <Col sm='9'>
+            {currentContactSession? (
+              <QRXRadar contactSession={currentContactSession} />
+            ) : (null)}
+          </Col>
+        </Row>
+      </Container>
     </ContactContext.Provider>
   );
 }

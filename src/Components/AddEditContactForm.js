@@ -16,7 +16,8 @@ function AddEditContactForm() {
     const { contact, setContact } = useContext(ContactContext);
 
     let contactSessionInitialState = null;
-    if (contact.sessions.length > 0) { 
+    const contactSessionLength = contact?.sessions?.length? contact.sessions.length: 0;
+    if (contactSessionLength > 0) { 
         contactSessionInitialState = { ...contact.sessions[contact.sessions.length - 1] };
     } else {
         contactSessionInitialState = { ...ContactSessionInitialState };
@@ -216,13 +217,13 @@ function AddEditContactForm() {
                 <Form.Label>Longitude</Form.Label>
                 <Form.Control value={formLong} required readOnly onChange={(e) => setFormLong(e.target.value)} type="text" />
             </Form.Group>
-            <Button variant="primary" type="button" onClick={getCurrentLocation} style={{ marginLeft: '.5rem' }}>
+            <Button variant="primary" type="button" onClick={getCurrentLocation} style={{ marginLeft: '.3rem', marginBottom: '.5rem' }}>
                 <FontAwesomeIcon icon={faLocationCrosshairs} size="1x" />
             </Button>
-            <Button variant="danger" type="button" disabled={contact.sessions.length < 0} onClick={(e) => handleVoidAirTime(e)} style={{ marginLeft: '.5rem' }}>
+            <Button variant="danger" type="button" onClick={(e) => handleVoidAirTime(e)} style={{ marginLeft: '.3rem', marginBottom: '.5rem' }}>
                 0m
             </Button>
-            <Button variant="primary" type="submit" style={{ marginLeft: '.5rem' }}>
+            <Button variant="primary" type="submit" style={{ marginLeft: '.3rem', marginBottom: '.5rem' }}>
                 +{QRXLookupConfig.checkInTimeoutMinutes}m
             </Button>
         </Form>
