@@ -11,6 +11,10 @@ import QRXRadar from './Components/QRXRadar';
 import QRXTimeout from './Components/QRXTimeout';
 import FirebaseFirestoreService from './FirebaseFirestoreService';
 
+import Button from 'react-bootstrap/Button';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+
 export const ContactContext = createContext();
 
 export const ContactInitialState = {
@@ -19,6 +23,7 @@ export const ContactInitialState = {
 };
 
 export const ContactSessionInitialState = {
+  SessionId: '',
   callsign: '',
   band: '',
   frequency: 0.0,
@@ -30,44 +35,52 @@ export const ContactSessionInitialState = {
   checkOut: null,
 };
 
+const fetchContacts = async() => {
+  let fetchedContacts = [];
+  try {
+    const response = await FirebaseFirestoreService.readDocuments('contacts');
+
+    const newContacts = response.docs.map((contactDoc) => {
+      // const id = contactDoc.id;
+      const data = contactDoc.data();
+
+      let sessions = [];
+      for (const session of contactDoc.data().sessions) {
+        session.checkIn = new Date(session.checkIn.toDate());
+        session.checkOut = new Date(session.checkOut.toDate());
+        sessions.push({ ...session });
+      }
+
+      return { 
+        ...data, 
+        sessions: [ ...sessions ],
+      };
+    });
+
+    fetchedContacts = [...newContacts];
+  } catch (error) {
+    console.error(error.message);
+    throw error;
+  }
+
+  return fetchedContacts;
+}
+
 function App() {
 
   const [ user, setUser ] = useState(null);
-  const [ contact, setContact ] = useState(ContactInitialState);
-  // eslint-disable-next-line no-unused-vars
   const [ contacts, setContacts ] = useState([]);
-
-  const contactSessionLength = contact?.sessions?.length? contact.sessions.length: 0;
-  let currentContactSession = contactSessionLength > 0? contact.sessions[contactSessionLength - 1]: null;
+  const [ contact, setContact ] = useState(ContactInitialState);
+  const [ addEditContactFormHide, setAddEditContactFormHide ] = useState(false);
 
   const bands = QRXLookupConfig.bands;
   const bandFrequencies = QRXLookupConfig.bandFrequencies;
   const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;
 
-  async function fetchContacts() {
-    let fetchedContacts = [];
-    try {
-      const response = await FirebaseFirestoreService.readDocuments('contacts');
-
-      const newContacts = response.docs.map((contactDoc) => {
-        const id = contactDoc.id;
-        const data = contactDoc.data;
-        return { ...data, id };
-      })
-
-      fetchedContacts = [...newContacts];
-    } catch (error) {
-      console.error(error.message);
-      throw error;
-    }
-
-    return fetchedContacts;
-  }
-
   async function handleFetchContacts() {
     try {
-      const fetchedContacts = await fetchContacts();
 
+      const fetchedContacts = await fetchContacts();
       setContacts(fetchedContacts);
     } catch (error) {
       console.error(error.message);
@@ -75,18 +88,52 @@ function App() {
     }
   }
 
-  async function handleAddContact(newContact) {
+  function handleGetActiveSessions() {
+
+    let active = [];
+    
+    for (let c of contacts) {
+        for (let s of c.sessions) {
+            if (s.checkOut > new Date()) {
+                active = [ ...active, { ...s } ];
+            }
+        }
+    }
+    
+    return active;
+  }
+
+  function handleUpdateContactByEmail(email) {
+    let found = false;
+    for (let c of contacts) {
+      found = (c.email === email);
+      if (found) {
+        console.log(`Found contact for ${user.email}...`);
+        console.log(c);
+        setContact({ ...c });
+      }
+    }
+
+    if (!found) {
+      setContact({
+        ...contact,
+        email: email,
+      });
+    }
+  }
+
+  async function handleUpdateContact(updatedContact) {
 
     try {
-        const response = await FirebaseFirestoreService.createDocument('contacts', newContact);
+        const response = await FirebaseFirestoreService.updateDocument('contacts', updatedContact);
 
         handleFetchContacts();
 
-        alert(`Successefully created document with ID ${response.id}`);
+        //alert(`Successefully created document with ID ${response.id}`);
+        console.log(response);
 
         setContact({
-            ...newContact,
-            id: response.id,
+            ...updatedContact,
         });
 
     } catch (error) {
@@ -94,55 +141,110 @@ function App() {
     }
   }
 
+  function handleLogout() {
+    FirebaseAuthService.logoutUser();
+    setContact(ContactInitialState);
+  }
+
   useEffect(() => {
 
     FirebaseAuthService.subscribeToAuthChanges(setUser);
-
-    if (user?.email !== contact?.email) {
-      setContact({ ...contact, email: user?.email });
-    }
 
     fetchContacts().then((fetchedContacts) => {
       setContacts(fetchedContacts);
     }).catch((error) => {
       console.error(error.message);
       throw error;
-    })
+    });
 
-  }, [contact, user]);
+    if (user?.email) {
+      console.log(`Searching contact for ${user.email}...`);
+      handleUpdateContactByEmail(user.email);
+    }
+  // eslint-disable-next-line  
+  }, [user]);
 
-  const band = currentContactSession? bands.find(elem => elem.value === currentContactSession.band): null;
-  const freq = currentContactSession? bandFrequencies.find(elem => elem.value === currentContactSession.frequency): null;
-  const tone = currentContactSession? CTCSSFrequencies.find(elem => elem.value === currentContactSession.CTCSSFrequency): null;
+  // useLayoutEffect(() => {
+
+  //   FirebaseAuthService.subscribeToAuthChanges(setUser);
+
+  //   console.log(user);
+
+  //   if (user) {
+
+  //     fetchContacts().then((fetchedContacts) => {
+  //       setContacts([ ...fetchedContacts ]);
+  //     }).catch((error) => {
+  //       console.error(error.message);
+  //       throw error;
+  //     });
+
+  //     console.log(contacts);
+
+  //     handleUpdateContactByEmail(user?.email);
+  //   }
+    
+  // }, [user]);
+
+  const sessionsLength = contact?.sessions?.length? contact.sessions.length: 0;
+  const lastContactSession = sessionsLength > 0? 
+    contact.sessions[sessionsLength - 1]:
+    { ...ContactSessionInitialState };
+
+  const band = lastContactSession? bands.find(elem => elem.value === lastContactSession.band): null;
+  const freq = lastContactSession? bandFrequencies.find(elem => elem.value === lastContactSession.frequency): null;
+  const tone = lastContactSession? CTCSSFrequencies.find(elem => elem.value === lastContactSession.CTCSSFrequency): null;
+
+  const centerContactSession = [lastContactSession.latitude, lastContactSession.longitude];
+  const activeContactSessions = [ ...handleGetActiveSessions() ];
+
+  console.log('Active sessions...');
+  console.log(activeContactSessions);
+
+  // console.log(user);
+  // console.log(contacts);
+  // console.log(contact);
+  // console.log(lastContactSession)
+  // console.log('about to render App...');
 
   return (
-    <ContactContext.Provider value={{ contact, setContact }}>
-      <Container className='App'>
+    <ContactContext.Provider value={{ contact, setContact, addEditContactFormHide, setAddEditContactFormHide }}>
+      <Container className='App' fluid>
         <Row className='header'>
-          <Col className='header-left' sm>
+          <Col className='header-left' md>
             <p className="title">QRX Lookup</p>
-            {currentContactSession? (
-              <QRXTimeout countDownDate={currentContactSession.checkOut} />
+            {lastContactSession?.checkOut? (
+              <QRXTimeout countDownDate={lastContactSession.checkOut} />
             ) : (null)}
           </Col>
-          <Col className='header-center' sm>
+          <Col className='header-center' md>
             <h2 style={{ color: '#ffff00' }}>{freq ? freq.label : null}</h2>
             <i>{band ? band.label : null} {tone ? "| " + tone.label : null}</i>
           </Col>
-          <Col className='header-right' sm>
-            <LoginForm />
+          <Col className='header-right' md>
+            {!user? <LoginForm />:
+              <>
+              {lastContactSession.callsign && lastContactSession.maidenhead?
+                <h3><code>{lastContactSession.callsign + " @ " + lastContactSession.maidenhead}</code></h3>: null
+              }
+              <p>
+                {user.email}
+                <Button variant="primary" type="button" onClick={handleLogout} style={{ marginLeft: '.5rem' }}>
+                  <FontAwesomeIcon icon={faArrowRightFromBracket} size="1x"/>
+                </Button>
+              </p>
+              </>
+            }
           </Col>
         </Row>
         <Row className='main'>
-          <Col sm='3'>
-            {user? (          
-              <AddEditContactForm handleAddContact={handleAddContact}/>
-            ) : (null)}
+          <Col md='3'>
+            {user && lastContactSession && !addEditContactFormHide?
+              <AddEditContactForm handleUpdateContact={handleUpdateContact}/>: null}
           </Col>
-          <Col sm='9'>
-            {currentContactSession? (
-              <QRXRadar contactSession={currentContactSession} />
-            ) : (null)}
+          <Col md={addEditContactFormHide? '12': '9'}>
+            {lastContactSession?.latitude !== 0.0 && lastContactSession?.longitude !== 0.0?
+              <QRXRadar centerContactSession={centerContactSession} activeContactSessions={activeContactSessions}/>: null}
           </Col>
         </Row>
       </Container>

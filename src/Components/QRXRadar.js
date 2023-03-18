@@ -1,45 +1,61 @@
 import QRXLookupConfig from '../QRXLookupConfig';
+
+import Leaflet from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import iconNormal from "leaflet/dist/images/marker-icon.png";
+import iconRetina from "leaflet/dist/images/marker-icon-2x.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+// import "leaflet/dist/images/layers-2x.png";
+// import "leaflet/dist/images/layers.png";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+
+let DefaultIcon = Leaflet.icon({
+    ...Leaflet.Icon.Default.prototype.options,
+    iconUrl: iconNormal,
+    iconRetinaUrl: iconRetina,
+    shadowUrl: iconShadow
+});
+
+Leaflet.Marker.prototype.options.icon = DefaultIcon;
 
 const styles = {
     height: '35rem', 
-    // width: '75%',
     border: '0.1rem solid rgba(60, 64, 67, 0.3)',
     borderRadius: '0.3rem',
 };
 
-function QRXRadar({contactSession}) {
+function QRXRadar({centerContactSession, activeContactSessions}) {
 
     const attrib = QRXLookupConfig.credit.attrib;
     const attribURL = QRXLookupConfig.credit.attribURL  ;
 
     const zoom = 13;
 
-    const centerPopup = contactSession.callsign + ' at ' + contactSession.maidenhead;
-    const centerCoords = [
-        contactSession.latitude,
-        contactSession.longitude
-    ];
+    // const centerPopup = contactSession.callsign + ' at ' + contactSession.maidenhead;
+    // const centerCoords = [
+    //     contactSession.latitude,
+    //     contactSession.longitude
+    // ];
 
-    let expired = contactSession.checkOut? (new Date()).getTime() > contactSession.checkOut.getTime(): false;
+    // let expired = contactSession.checkOut? (new Date()).getTime() > contactSession.checkOut.getTime(): false;
 
     function ChangeView({ center, zoom }) {
         const map = useMap();
         map.setView(center, zoom);
         return null;
     }
-
+    
     return (    
-        <MapContainer center={centerCoords} zoom={zoom} scrollWheelZoom={false} style={styles}>
-            <ChangeView center={centerCoords} zoom={zoom} /> 
+        <MapContainer center={centerContactSession} zoom={zoom} scrollWheelZoom={false} style={styles}>
+            <ChangeView center={centerContactSession} zoom={zoom} />
             <TileLayer attribution={attrib} url={attribURL}/>
-            {centerCoords[0] !== 0 && centerCoords[1] !== 0 && !expired? (
-                <Marker position={centerCoords}>
-                    <Popup>{centerPopup}</Popup>
-                </Marker>
-            ) : (
-                null
-            )}
+            {activeContactSessions.map(({ latitude, longitude, callsign, maidenhead }, idx) => {                 
+                return (
+                    <Marker position={ [latitude, longitude] } key={idx}>
+                        <Popup>{ callsign + ' @ ' + maidenhead }</Popup>
+                    </Marker>
+                )
+            })}
         </MapContainer>
     );
 }

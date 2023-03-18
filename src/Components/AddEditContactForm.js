@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import QRXLookupConfig from '../QRXLookupConfig';
 import QRXMaidenhead from '../QRXMaidenhead';
 import { ContactContext } from '../App';
@@ -11,41 +11,62 @@ import { faLocationCrosshairs } from "@fortawesome/free-solid-svg-icons";
 
 import { ContactSessionInitialState } from '../App';
 
-function AddEditContactForm() {
+function AddEditContactForm({ handleUpdateContact }) {
 
-    const { contact, setContact } = useContext(ContactContext);
+    const { contact, setContact, setAddEditContactFormHide } = useContext(ContactContext);
 
-    let contactSessionInitialState = null;
-    const contactSessionLength = contact?.sessions?.length? contact.sessions.length: 0;
-    if (contactSessionLength > 0) { 
-        contactSessionInitialState = { ...contact.sessions[contact.sessions.length - 1] };
-    } else {
-        contactSessionInitialState = { ...ContactSessionInitialState };
-    }
-    const [ contactSession, setContactSession ] = useState(contactSessionInitialState);
+    const sessionsLength = contact?.sessions?.length? contact.sessions.length: 0;
+    const contactSession  = sessionsLength > 0?
+        { ...contact.sessions[sessionsLength - 1] }:
+        { ...ContactSessionInitialState };
 
-    const [filteredBandFrequencies, setFilteredBandFrequencies] = useState([]);
-
-    const [formCall, setFormCall] = useState(contactSession.callsign);
-    const [formBand, setFormBand] = useState(contactSession.band);
-    const [formFreq, setFormFreq] = useState(contactSession.frequency);
-    const [formCTCSSFreq, setFormCTCSSFreq] = useState(contactSession.CTCSSFrequency);
-    const [formLatd, setFormLatd] = useState(contactSession.latitude);
-    const [formLong, setFormLong] = useState(contactSession.longitude);
-    
     const bands = QRXLookupConfig.bands;
     const bandFrequencies = QRXLookupConfig.bandFrequencies;
     const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;
 
-    function getCurrentLocation() {
+    const [form, setForm] = useState({
+        id: contactSession.sessionId,
+        call: contactSession.callsign,
+        band: contactSession.band,
+        freq: contactSession.frequency,
+        tone: contactSession.CTCSSFrequency,
+        latd: contactSession.latitude,
+        long: contactSession.longitude,
+        freqOpt: [ ...filterFreqOpt(contactSession.band) ],
+        getPos: false,
+    });
+
+    function filterFreqOpt(band) {
+        let filtered = [];
+        if (band && band.startsWith('cb.11m')) {
+            filtered = bandFrequencies.filter(
+                (o) => o.link.startsWith('cb.11m')
+            );
+        } else if (band) {
+            filtered = bandFrequencies.filter(
+                (o) => o.link === band
+            );
+        }
+        return filtered;
+    }
+
+    function handleGetCurrentLocation() {
+        setForm({
+            ...form,
+            getPos: true,
+        });
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(savePosition, showError);
         }
     }
 
     function savePosition(position) {
-        setFormLatd(position.coords.latitude);
-        setFormLong(position.coords.longitude);
+        setForm({
+            ...form,
+            latd: Math.fround(position.coords.latitude),
+            long: Math.fround(position.coords.longitude),
+            getPos: false,
+        });
     }
 
     function showError(error) {
@@ -75,16 +96,17 @@ function AddEditContactForm() {
     function handleMoreAirTime(e) {
         e.preventDefault();
 
-        let sessions = [ ...contact.sessions ];
+        let contactSessions = [ ...contact.sessions ];
 
         let updatedContactSession = {
-            callsign: formCall,
-            band: formBand,
-            frequency: formFreq,
-            CTCSSFrequency: formCTCSSFreq,
-            latitude: parseFloat(formLatd),
-            longitude: parseFloat(formLong),
-            maidenhead: QRXMaidenhead.gridForLatLon(parseFloat(formLatd), parseFloat(formLong)),
+            sessionId: form.id,
+            callsign: form.call,
+            band: form.band,
+            frequency: form.freq,
+            CTCSSFrequency: form.tone,
+            latitude: Math.fround(form.latd),
+            longitude: Math.fround(form.long),
+            maidenhead: QRXMaidenhead.gridForLatLon(form.latd, form.long),
             checkIn: contactSession.checkIn? new Date(contactSession.checkIn): new Date(),
             checkOut: contactSession.checkOut? new Date(contactSession.checkOut): new Date(),
         };
@@ -100,6 +122,7 @@ function AddEditContactForm() {
         ) {
             console.log('First | New session...');
 
+            updatedContactSession.sessionId = crypto.randomUUID();
             updatedContactSession.checkIn = new Date();
 
             if (contact.sessions.length > 0) {
@@ -109,24 +132,28 @@ function AddEditContactForm() {
                 );
             }
 
-            sessions = [ ...sessions, {...updatedContactSession} ];
+            contactSessions = [ ...contactSessions, {...updatedContactSession} ];
             
         } else {
             console.log('Current session...');
 
             const currElem = contact.sessions.length > 0? contact.sessions.length - 1: 0;
 
-            sessions[currElem] = { ...updatedContactSession };
+            contactSessions[currElem] = { ...updatedContactSession };
         }
 
-        setContact({
+        let updatedContact = {
             ...contact,
-            sessions: sessions,
-        });
+            sessions: [ ...contactSessions ],
+        };
 
-        setContactSession({
-            ...updatedContactSession,
-        });
+        handleUpdateContact(updatedContact);
+
+        // setContactSession({
+        //     ...updatedContactSession,
+        // });
+
+        setAddEditContactFormHide(true);
     };
 
     function handleVoidAirTime(e) {
@@ -147,38 +174,46 @@ function AddEditContactForm() {
             sessions: sessions,
         });
 
-        setContactSession({
-            ...updatedContactSession,
-        });
+        // setContactSession({
+        //     ...updatedContactSession,
+        // });
     };
 
     function handleBandChange(band) {
-
-        if (band.startsWith('cb.11m')) {
-            setFilteredBandFrequencies(bandFrequencies.filter(
-                (o) => o.link.startsWith('cb.11m')
-            ));
-        } else {
-            setFilteredBandFrequencies(bandFrequencies.filter(
-                (o) => o.link === band
-            ));
-        }
-
-        setFormBand(band);
-        setFormFreq('');
+        setForm({
+            ...form,
+            band: band,
+            freq: '',
+            freqOpt: [ ...filterFreqOpt(band) ],
+        });        
     };
+    
+    useEffect(() => {
+        setForm({
+            ...form,
+            id: contactSession.sessionId,
+            call: contactSession.callsign,
+            band: contactSession.band,
+            freq: contactSession.frequency,
+            tone: contactSession.CTCSSFrequency,
+            latd: contactSession.latitude,
+            long: contactSession.longitude,
+            freqOpt: [ ...filterFreqOpt(contactSession.band) ],
+        });
+    // eslint-disable-next-line
+    }, [contact]);
 
-    getCurrentLocation();
+    // console.log('about to render AddEditContactForm...');
 
     return (
         <Form onSubmit={(e) => handleMoreAirTime(e)}>
             <Form.Group className="mb-2" controlId="callsign">
                 <Form.Label>Callsign</Form.Label>
-                <Form.Control value={formCall} required onChange={(e) => setFormCall(e.target.value)} type="text" placeholder="Your callsign" />
+                <Form.Control value={form.call} required onChange={(e) => setForm({ ...form, call: e.target.value })} type="text" placeholder="Your callsign" />
             </Form.Group>
             <Form.Group className="mb-2" controlId="band">
                 <Form.Label>Band | Modulation</Form.Label>
-                <Form.Select value={formBand} required onChange={(e) => handleBandChange(e.target.value)}>
+                <Form.Select value={form.band} required onChange={(e) => handleBandChange(e.target.value)}>
                     <option />
                     {bands.map((item, index) => {
                         return (
@@ -189,9 +224,9 @@ function AddEditContactForm() {
             </Form.Group>
             <Form.Group className="mb-2" controlId="frequency">
                 <Form.Label>Channel | Frequency</Form.Label>
-                <Form.Select value={formFreq} required onChange={(e) => setFormFreq(e.target.value)}>
+                <Form.Select value={form.freq} required onChange={(e) => setForm({ ...form, freq: e.target.value })}>
                     <option />
-                    {filteredBandFrequencies.map((item, index) => {
+                    {form.freqOpt.map((item, index) => {
                         return (
                             <option key={index} value={item.value}>{item.label}</option>
                         )
@@ -200,7 +235,7 @@ function AddEditContactForm() {
             </Form.Group>
             <Form.Group className="mb-2" controlId="CTCSSFrequency">
                 <Form.Label>CTCSS Frequency</Form.Label>
-                <Form.Select value={formCTCSSFreq} onChange={(e) => setFormCTCSSFreq(e.target.value)}>
+                <Form.Select value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value })}>
                     <option />
                     {CTCSSFrequencies.map((item, index) => {
                         return (
@@ -211,13 +246,13 @@ function AddEditContactForm() {
             </Form.Group>
             <Form.Group className="mb-2" controlId="latitude">
                 <Form.Label>Latitude</Form.Label>
-                <Form.Control value={formLatd} required readOnly onChange={(e) => setFormLatd(e.target.value)} type="text" />
+                <Form.Control value={form.latd} required onChange={(e) => setForm({ ...form, latd: e.target.value })} type="text" />
             </Form.Group>
             <Form.Group className="mb-2" controlId="longitude">
                 <Form.Label>Longitude</Form.Label>
-                <Form.Control value={formLong} required readOnly onChange={(e) => setFormLong(e.target.value)} type="text" />
+                <Form.Control value={form.long} required onChange={(e) => setForm({ ...form, long: e.target.value })} type="text" />
             </Form.Group>
-            <Button variant="primary" type="button" onClick={getCurrentLocation} style={{ marginLeft: '.3rem', marginBottom: '.5rem' }}>
+            <Button variant="primary" type="button" disabled={form.getPos} onClick={() => handleGetCurrentLocation()} style={{ marginLeft: '.3rem', marginBottom: '.5rem' }}>
                 <FontAwesomeIcon icon={faLocationCrosshairs} size="1x" />
             </Button>
             <Button variant="danger" type="button" onClick={(e) => handleVoidAirTime(e)} style={{ marginLeft: '.3rem', marginBottom: '.5rem' }}>

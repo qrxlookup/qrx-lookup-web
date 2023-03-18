@@ -2,6 +2,10 @@ import { useEffect, useState, useContext } from "react";
 
 import { ContactContext } from '../App';
 
+import Button from 'react-bootstrap/Button';
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPen } from "@fortawesome/free-solid-svg-icons";
+
 const SECOND = 1000;
 const MINUTE = SECOND * 60;
 const HOUR = MINUTE * 60;
@@ -10,7 +14,11 @@ const DAY = HOUR * 24;
 
 const QRXTimeout = ({ countDownDate }) => {
 
-    const { contact } = useContext(ContactContext);
+    const { contact, addEditContactFormHide, setAddEditContactFormHide } = useContext(ContactContext);
+
+    async function handleToggleShowHideForm() {
+        setAddEditContactFormHide(!addEditContactFormHide);
+    }    
 
     const [time, setTime] = useState(countDownDate.getTime() - new Date().getTime());
 
@@ -26,7 +34,6 @@ const QRXTimeout = ({ countDownDate }) => {
     );
 
     let countDown = <i>Run out of AirTime!!!</i>;
-    let fontColor = '#ff0000';
 
     if (time > 0) {
 
@@ -35,12 +42,15 @@ const QRXTimeout = ({ countDownDate }) => {
         countDown += `${Math.floor((time / HOUR) % 24)}`.padStart(2, "0") + " hours | ";
         countDown += `${Math.floor((time / MINUTE) % 60)}`.padStart(2, "0") + " mins | ";
         countDown += `${Math.floor((time / SECOND) % 60)}`.padStart(2, "0") + " secs";
-
-        fontColor = '#fff';
     }
 
     return (
-        <div style={{ color: fontColor }}>{countDown}</div>
+        <p>
+            {countDown}
+            <Button variant={addEditContactFormHide? 'primary': 'secondary'} type="button" onClick={handleToggleShowHideForm} style={{ marginLeft: '.5rem' }}>
+                <FontAwesomeIcon icon={faPen} size="1x"/>
+            </Button>
+        </p>
     );
 }
 

@@ -38,7 +38,7 @@ function gridForLatLon(latitude, longitude) {
 		rLat, rLon;
 
 	// Parameter Validataion
-	var lat = parseFloat(latitude);
+	var lat = Math.fround(latitude);
 	if (isNaN(lat)) {
 		throw Error("latitude is NaN");
 	}
@@ -51,7 +51,7 @@ function gridForLatLon(latitude, longitude) {
 		throw Error("invalid latitude: " + lat);
 	}
 
-	var lon = parseFloat(longitude);
+	var lon = Math.fround(longitude);
 	if (isNaN(lon)) {
 		throw Error("longitude is NaN");
 	}
