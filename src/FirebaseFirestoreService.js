@@ -1,5 +1,5 @@
 import firebase from './FirebaseConfig';
-import { getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs } from "firebase/firestore";
+import { getFirestore, collection, query, onSnapshot, doc, addDoc, setDoc, getDoc, getDocs } from "firebase/firestore";
 
 const db = getFirestore(firebase);
 
@@ -8,7 +8,7 @@ const createDocument = async (collectName, doc) => {
 };
 
 const updateDocument = async (collection, document) => {
-    return await setDoc(doc(db, collection, document.email), document);
+    await setDoc(doc(db, collection, document.email), document);
 };
 
 const readDocuments = async (collectName) => {
@@ -28,11 +28,23 @@ const readDocument = async (collectName, id) => {
     return docSnap.data;
 };
 
+const subscribeToDocChanges = (collectName, handleDocChange) => {
+
+    const q = query(collection(db, collectName));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        handleDocChange(snapshot.docChanges());
+    });
+
+    return unsubscribe;
+}
+
 const FirebaseFirestoreService = {
     createDocument,
     updateDocument,
     readDocuments,
     readDocument,
+    subscribeToDocChanges,
 };
 
 export default FirebaseFirestoreService;

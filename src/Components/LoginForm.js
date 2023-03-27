@@ -1,4 +1,4 @@
-import { useState } from 'react';
+// import { useState } from 'react';
 import FirebaseAuthService from '../FirebaseAuthService';
 
 import Form from 'react-bootstrap/Form';
@@ -13,29 +13,29 @@ import '../App.css';
 function LoginForm() {
 
     // const { contact, setContact } = useContext(ContactContext);
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [registration, setRegistration] = useState(false);
+    // const [username, setUsername] = useState('');
+    // const [password, setPassword] = useState('');
+    // const [registration, setRegistration] = useState(false);
 
     // const contactSessionLength = contact?.sessions?.length? contact.sessions.length: 0;
     // let contactSession = contactSessionLength > 0? contact.sessions[contactSessionLength - 1]: null;
 
-    async function handleLogin(event) {
-        event.preventDefault();
+    // async function handleLogin(event) {
+    //     event.preventDefault();
 
-        try {
-            if (registration) {
-                await FirebaseAuthService.registerUser(username, password);
-            } else {
-                await FirebaseAuthService.loginUser(username, password);
-            }
-            setUsername('');
-            setPassword('');
-            setRegistration(false);
-        } catch (error) {
-            alert(error.message);
-        }
-    }
+    //     try {
+    //         if (registration) {
+    //             await FirebaseAuthService.registerUser(username, password);
+    //         } else {
+    //             await FirebaseAuthService.loginUser(username, password);
+    //         }
+    //         setUsername('');
+    //         setPassword('');
+    //         setRegistration(false);
+    //     } catch (error) {
+    //         alert(error.message);
+    //     }
+    // }
 
     // async function handleSendResetPasswordEmail() {
     //     if (!username) {

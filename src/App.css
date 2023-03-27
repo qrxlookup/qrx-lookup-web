@@ -21,7 +21,7 @@ html {
   justify-content: center;
 }
 .header-center {
-  display: block;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -36,6 +36,6 @@ html {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-around;  
+  justify-content: center;
   padding: 0.3rem;
 }

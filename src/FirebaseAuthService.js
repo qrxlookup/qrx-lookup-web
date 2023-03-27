@@ -55,7 +55,17 @@ import firebase from './FirebaseConfig';
 
 // export default FirebaseAuthService;
 
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, TwitterAuthProvider } from "firebase/auth";
+import { 
+    getAuth, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    signOut, 
+    onAuthStateChanged, 
+    signInWithPopup, 
+    GoogleAuthProvider, 
+    FacebookAuthProvider, 
+    TwitterAuthProvider 
+} from "firebase/auth";
 
 const auth = getAuth(firebase);
 

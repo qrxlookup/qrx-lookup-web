@@ -3,16 +3,15 @@ const credit = {
     attribURL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 };
 
-const checkInTimeoutMinutes = 30;
-const checkInCriticaltMinutes = 3;
+const extraAirTime = 30;
 
 const bands = [
-    { label: "LPD | FM", value: "lpd.70cm-fm" },
-    { label: "PMR | FM", value: "pmr.70cm-fm" },
-    { label: "CB | USB", value: "cb.11m-usb" },
-    { label: "CB | LSB", value: "cb.11m-lsb" },
-    { label: "CB | AM", value: "cb.11m-am" },
-    { label: "CB | FM", value: "cb.11m-fm" },
+    { label: "PMR | FM", value: "pmr.70cm-fm", range: {urban: 1, rural: 3} },
+    { label: "CB | USB", value: "cb.11m-usb", range: {urban: 20, rural: 50} },
+    { label: "CB | LSB", value: "cb.11m-lsb", range: {urban: 20, rural: 50} },
+    { label: "CB | AM", value: "cb.11m-am", range: {urban: 5, rural: 10} },
+    { label: "CB | FM", value: "cb.11m-fm", range: {urban: 5, rural: 10} },
+    { label: "LPD | FM", value: "lpd.70cm-fm", range: {urban: 0.5, rural: 1} }
 ];
 
 const bandFrequencies = [
@@ -198,13 +197,19 @@ const CTCSSFrequencies = [
     { label: "254.1 Hz", value: "254.1" },
 ];
 
+const geoapifyURL = (latitude, longitude) => {
+    const apiKey = 'ec1d0d714dcf40b1b885779c7599b467';
+    const apiURL = `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=${apiKey}`;
+    return apiURL;
+}
+
 const QRXLookupConfig = {
     credit,
-    checkInTimeoutMinutes,
-    checkInCriticaltMinutes,
+    extraAirTime,
     bands,
     bandFrequencies,
     CTCSSFrequencies,
+    geoapifyURL,
 };
 
 export default QRXLookupConfig;

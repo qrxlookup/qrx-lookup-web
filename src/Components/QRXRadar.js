@@ -5,9 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import iconNormal from "leaflet/dist/images/marker-icon.png";
 import iconRetina from "leaflet/dist/images/marker-icon-2x.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
-// import "leaflet/dist/images/layers-2x.png";
-// import "leaflet/dist/images/layers.png";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 
 let DefaultIcon = Leaflet.icon({
     ...Leaflet.Icon.Default.prototype.options,
@@ -24,20 +22,15 @@ const styles = {
     borderRadius: '0.3rem',
 };
 
-function QRXRadar({centerContactSession, activeContactSessions}) {
+function QRXRadar({centerContactSession, bandPerimeter, activeContactSessions}) {
 
     const attrib = QRXLookupConfig.credit.attrib;
     const attribURL = QRXLookupConfig.credit.attribURL  ;
-
+    const bands = QRXLookupConfig.bands;
+    const bandFrequencies = QRXLookupConfig.bandFrequencies;
+    const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;
+  
     const zoom = 13;
-
-    // const centerPopup = contactSession.callsign + ' at ' + contactSession.maidenhead;
-    // const centerCoords = [
-    //     contactSession.latitude,
-    //     contactSession.longitude
-    // ];
-
-    // let expired = contactSession.checkOut? (new Date()).getTime() > contactSession.checkOut.getTime(): false;
 
     function ChangeView({ center, zoom }) {
         const map = useMap();
@@ -49,10 +42,24 @@ function QRXRadar({centerContactSession, activeContactSessions}) {
         <MapContainer center={centerContactSession} zoom={zoom} scrollWheelZoom={false} style={styles}>
             <ChangeView center={centerContactSession} zoom={zoom} />
             <TileLayer attribution={attrib} url={attribURL}/>
-            {activeContactSessions.map(({ latitude, longitude, callsign, maidenhead }, idx) => {                 
+            {bandPerimeter? <Circle center={centerContactSession} pathOptions={{fill: false, color: 'red', weight: 1}} radius={bandPerimeter * 1000} />:null}
+            {activeContactSessions.map(({ 
+                latitude, longitude, callsign, operator, maidenhead, band, frequency, CTCSSFrequency
+            }, idx) => { 
+
+                const bandLabel = band? bands.find(elem => elem.value === band).label: null;
+                const freqLabel = frequency? bandFrequencies.find(elem => elem.value === frequency).label: null;
+                const toneLabel = CTCSSFrequency? CTCSSFrequencies.find(elem => elem.value === CTCSSFrequency).label: null;
+                                
                 return (
                     <Marker position={ [latitude, longitude] } key={idx}>
-                        <Popup>{ callsign + ' @ ' + maidenhead }</Popup>
+                        <Popup>
+                            <center>
+                            <b>{ callsign + ' @ ' + maidenhead }</b><br/>
+                            {operator? <><i>({ operator })</i><br/></>: null}
+                            <p><code>{ bandLabel + ' | ' + freqLabel }{ toneLabel? ' | Tone ' + toneLabel: '' }</code></p>
+                            </center>
+                        </Popup>
                     </Marker>
                 )
             })}
