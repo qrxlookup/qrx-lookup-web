@@ -2,38 +2,49 @@ import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import { useTranslation } from "react-i18next";
-import React, { useState, createContext, useEffect } from 'react';
+import React, { useState, createContext, useEffect, useLayoutEffect } from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
 import FirebaseAuthService from './FirebaseAuthService';
 import QRXLookupConfig from './QRXLookupConfig';
 import LoginForm from './Components/LoginForm';
-import AddEditContactForm from './Components/AddEditContactForm';
+import ContactForm from './Components/ContactForm';
+import ContactSessionForm from './Components/ContactSessionForm';
 import QRXRadar from './Components/QRXRadar';
 import QRXTable from './Components/QRXTable';
 import QRXAirTime from './Components/QRXAirTime';
 import FirebaseFirestoreService from './FirebaseFirestoreService';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
+import Toast from 'react-bootstrap/Toast';
+import ToastContainer from 'react-bootstrap/ToastContainer';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowRightFromBracket, faPen } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRightFromBracket, faUserGroup, faTowerBroadcast, faGear } from "@fortawesome/free-solid-svg-icons";
 
-export const ContactContext = createContext();
+export const AppContext = createContext();
 
 export const ContactInitialState = {
   email: '',
   operator: '',
+  perimeter: '',
+  callsigns: [],
   sessions: [],
 };
 
 export const ContactSessionInitialState = {
-  SessionId: '',
+  sessionId: '',
   callsign: '',
   band: '',
   frequency: 0.0,
   CTCSSFrequency: 0.0,
+  radios: [],
+  // radios: [
+  //   { callsign: '', band: '', frequency: '', tone: '' }
+  // ],
   perimeter: '',
-  latitude: '',
-  longitude: '',
+  latitude: 0.0,
+  longitude: 0.0,
+  latitudeO: 0.0,
+  longitudeO: 0.0,
   country: '',
   city: '',
   locality: '',
@@ -42,49 +53,49 @@ export const ContactSessionInitialState = {
   checkOut: null,
 };
 
-const DataToContact = (id, data) => {
+const dataToContact = (id, data) => {
 
   let sessions = [];
 
-  for (const session of data.sessions) {
+  for (const session of data.sessions || []) {
     session.checkIn = new Date(session.checkIn.toDate());
     session.checkOut = new Date(session.checkOut.toDate());
     sessions.push({ ...session });
   }
 
+  const sort = {
+    ...data.sort,
+    field: data.sort?.field || 'Distance',
+    descending: data.sort?.descending === 'true'? true: false
+  }
+
   return {
     ...data, 
+    sort: { ...sort },
     sessions: [ ...sessions ],
   };
 }
 
 function App() {
 
-  const version = '1.0-beta';
-
-  let lang = 'en';
   const { t, i18n } = useTranslation();
-  const [ language, setLanguage ] = useState(lang);
-
-  const bands = QRXLookupConfig.bands;
-  const bandFrequencies = QRXLookupConfig.bandFrequencies;
-  const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;
+  const [ language, setLanguage ] = useState('en');
 
   const [ user, setUser ] = useState(null);
+  const [ myContact, setMyContact ] = useState(null);
+
   const [ contacts, setContacts ] = useState([]);
-  const [ myContact, setMyContact ] = useState(ContactInitialState);
-  const [ addEditContactFormHide, setAddEditContactFormHide ] = useState(false);
-
-  let activeContactSessions = [];
-  let mySessionsLength = 0;
-  let myLastSession = null;
-  let myLastSessionCenter = [];
-
-  let band = null;
-  let freq = null;
-  let tone = null;
-
-  let bandPerimeter = null;
+  const [ changedContacts, setChangedContacts ] = useState([]);
+  const [ radarCenter, setRadarCenter ] = useState(null);
+  
+  const [ popUp, setPopUp ] = useState({
+    tittle: '',
+    status: '',
+    message: '',
+    show: false,
+    showContactDetails: false,
+    showSessionDetails: false,
+  });
 
   const changeLanguageHandler = (e) => {
     const lang = e.target.value;
@@ -93,36 +104,175 @@ function App() {
     localStorage.setItem("language", lang);
   }
 
-  function handleToggleShowHideForm() {
-    setAddEditContactFormHide(!addEditContactFormHide);
+  const handleToggleShowContactDetails = () => {
+
+    setPopUp({
+      ...popUp,
+      showContactDetails: !popUp.showContactDetails,
+      showSessionDetails: !popUp.showContactDetails? false: popUp.showSessionDetails,
+    });
   }    
 
-  function handleGetMyContact() {
-    const contact = contacts.find(elem => elem.email === user?.email);
-    if (user && contact) {
-      setMyContact({ ...contact });
-    } else {
-      setMyContact({ email: user?.email, sessions: [] });
-    }
+  const handleToggleShowSessionDetails = () => {
+
+    setPopUp({
+      ...popUp,
+      showSessionDetails: !popUp.showSessionDetails,
+      showContactDetails: !popUp.showSessionDetails? false: popUp.showContactDetails,
+    });
   }
 
-  function handleGetActiveSessions() {
+  const getSessionDetails = (session, operator, center) => {
 
-    let active = [];
+    let detailedSession = null;
+
+    let bandDetails = null;
+    let freqDetails = null;
+    let toneDetails = null;
+
+    let ghostCheckOut = new Date(session.checkOut);
+    ghostCheckOut.setMinutes(
+        ghostCheckOut.getMinutes() + QRXLookupConfig.ghostAirTime
+    );
+
+    let status = 'active';
+    if (session.checkOut < new Date() && ghostCheckOut > new Date()) {
+        status = 'inactive';
+    }
+
+    const dist = QRXLookupConfig.distance(
+      center[0],
+      center[1],
+      session.latitude,
+      session.longitude,
+    ).toFixed(2);
+
+    const bear = QRXLookupConfig.bearing(
+      center[0],
+      center[1],
+      session.latitude,
+      session.longitude,
+    ).toFixed(0);
+
+    let radios = [ ...session.radios || [] ];
+    if (!radios || radios.length === 0) {
+      radios = [{
+        callsign: session.callsign,
+        band: session.band,
+        frequency: session.frequency,
+        tone: session.CTCSSFrequency,
+      }];
+    }
+
+    for(let r = 0; r < radios.length; r++) {
+
+      const radio = { ...radios[r] };
+
+      bandDetails = QRXLookupConfig.bandDetails(radio.band);
+      freqDetails = QRXLookupConfig.frequencyDetails(radio.frequency);
+      toneDetails = QRXLookupConfig.toneDetails(radio.tone);
+
+      radios[r] = {
+        ...radio,
+        band: bandDetails?.label,
+        bandPinIcon: bandDetails?.pinIcon,
+        bandFontColor: bandDetails?.fontColor,
+        frequency: freqDetails?.label,
+        tone: toneDetails?.label,
+      }
+    };
+
+    bandDetails = QRXLookupConfig.bandDetails(session.band);
+    freqDetails = QRXLookupConfig.frequencyDetails(session.frequency);
+    toneDetails = QRXLookupConfig.toneDetails(session.CTCSSFrequency);
+
+    detailedSession = {
+      ...session,
+      ghostCheckOut: ghostCheckOut,
+      operator: operator,
+      distance: dist,
+      bearing: bear,
+      band: bandDetails?.label? bandDetails.label: '',
+      bandIconFile: bandDetails?.pinIcon || '',
+      frequency: freqDetails?.label || '',
+      tone: toneDetails?.label || '',
+      radios: radios,
+      status: status,
+      locality: session.locality,
+      city: session.city,
+      country: session.country,
+    };
+
+    return detailedSession;
+  }
+
+  const handleLoadActiveAndRecentSessions = (centerSession, excludedSessionIds = []) => {
+
+    const center = [
+      centerSession?.latitude? centerSession?.latitude: 0, 
+      centerSession?.longitude? centerSession?.longitude: 0,
+    ];  
+
+    let activeSessions = [];
     
+    for (let c of contacts || []) {
+        
+      let lastSession = null;
+      if (c.sessions?.length > 0) 
+        lastSession = { ...c.sessions[c.sessions.length - 1] };
+
+      if (lastSession && !excludedSessionIds.includes(lastSession.sessionId)) {
+
+        const detailedSession = getSessionDetails(lastSession, c.operator, center);
+
+        let ghostCheckOut = new Date(lastSession.checkOut);
+        ghostCheckOut.setMinutes(
+            ghostCheckOut.getMinutes() + QRXLookupConfig.ghostAirTime
+        );
+
+        if (lastSession.checkOut > new Date() || ghostCheckOut > new Date())
+          activeSessions.push(detailedSession);
+      }
+    }
+    
+    return activeSessions;
+  }
+
+  const handleIsValidCallsign = (call, pct, email) => {
+
     for (let c of contacts) {
-        for (let s of c.sessions) {
-            if (s.checkOut > new Date()) {
-                s.operator = c.operator;
-                active = [ ...active, { ...s } ];
-            }
-        }
+      // Search within registered callsigns
+      for (let call2 of c.callsigns || [])
+        if (QRXLookupConfig.similarity(call, call2) > pct && email !== c.email)
+          return false;
+      // Search within callsigns used in sessions
+      for (let sess of c.sessions || [])
+        if (QRXLookupConfig.similarity(call, sess.callsign) > pct && email !== c.email)
+          return false;
     }
-    
-    return active;
+    return true;
   }
 
-  async function handleUpdateContact(updatedContact) {
+  const handleChangeRadarCenter = (center) => {
+
+    if (center && radarCenter 
+    && center[0] === radarCenter[0] 
+    && center[1] === radarCenter[1]) {
+
+      // console.log(`Reset center...`);
+      setRadarCenter(null);
+
+    } else if (center && center.length === 2) {
+      
+      // console.log(`New center: ${center}`);
+      setRadarCenter(center);      
+    }
+  }
+
+  const handleUpdateContact = async(updatedContact) => {
+
+    console.log(`%c> Writing 1 record to Firestore.`, 'color: red');
+    console.log('\n');
 
     try {
         await FirebaseFirestoreService.updateDocument('contacts', updatedContact);
@@ -134,103 +284,228 @@ function App() {
     } catch (error) {
         alert(error.message);
     }
-  }
 
-  function handleDocChange(docChanges) {
-
-    docChanges.forEach((change) => {
-
-      const contact = DataToContact(change.doc.id, { ...change.doc.data() });
-
-      /* Handle added contacts */
-      if (change.type === "added") {
-
-        // console.log("New contact:", contact);
-        // console.log('\n');
-
-        if (!contacts.find(elem => elem.email === contact.email))
-          setContacts([ ...contacts, { ...contact } ]);
-      }
-      /* Handle modified contacts */
-      if (change.type === "modified") {
-
-        // console.log("Modified contact: ", contact);
-        // console.log('\n');
-
-        const updateContacts = [ ...contacts ];
-
-        const idx = updateContacts.findIndex(elem => elem.email === contact.email);
-
-        if (idx !== -1) {
-          updateContacts[idx] = { ...contact };
-          setContacts([ ...updateContacts ]);
-        }
-      }
-      /* Handle deleted contacts */
-      if (change.type === "removed") {
-
-        // console.log("Removed contact: ", contact);
-        // console.log('\n');
-
-        setContacts([
-          ...contacts.filter(elem => elem.email !== contact.email)
-        ]);
-      }
+    setPopUp({
+      tittle: '',
+      status: '',
+      message: '',
+      show: false,
+      showContactDetails: false,
+      showSessionDetails: false,
     });
   }
 
-  function handleLogout() {
-    FirebaseAuthService.logoutUser();
-    setMyContact(ContactInitialState);
+  const handleDocChange = (docChanges) => {
+
+    console.log(`%c> Reading ${docChanges.length} records from Firestore.`, 'color: red');
+    console.log('\n');
+
+    let changes = [];
+
+    docChanges.forEach((change) => {
+
+      const contact = dataToContact(change.doc.id, { ...change.doc.data() });
+
+      changes = [ 
+        ...changes, 
+        { contact: { ...contact }, type: change.type} 
+      ];
+
+      if (user && user.email === contact.email) {
+        setMyContact({ ...contact });
+      }
+    });
+
+    setChangedContacts([ ...changes ]);
   }
+
+  const handleLogout = () => {
+
+    FirebaseAuthService.logoutUser();
+
+    const mySessionsLength = myContact?.sessions?.length? myContact.sessions.length: 0;
+    const myLastSession = mySessionsLength > 0? myContact.sessions[mySessionsLength - 1]: null;
+
+    if (myLastSession && myLastSession?.checkOut > new Date()) {
+
+      myLastSession.checkOut = new Date();
+
+      myContact.sessions[mySessionsLength - 1] = { ...myLastSession };
+
+      const updatedContact = {
+        ...myContact
+      };
+
+      console.log(updatedContact);
+
+      handleUpdateContact(updatedContact);
+    }
+
+    setPopUp({
+      tittle: '',
+      status: '',
+      message: '',
+      show: false,
+      showContactDetails: false,
+      showSessionDetails: false,
+    });
+
+    setMyContact(null);
+    setUser(null);
+  }
+
+  useLayoutEffect(() => {
+
+    if (!user) {
+
+      console.log('+ No user logged in...');
+      console.log('\n');
+
+      setPopUp({
+        tittle: '',
+        status: '',
+        message: '',
+        show: false,
+        showContactDetails: false,
+        showSessionDetails: false,
+      });
+
+    } else if (!myContact || (myContact && myContact?.callsigns?.length < 1)) {
+
+      console.log('+ User logged in, no profile created or zero callsign...');
+      console.log('\n');
+
+      setPopUp({
+        tittle: t('profile.incomplete'),
+        status: '',
+        message: t('contactForm.CallSign.missing'),
+        show: true,
+        showContactDetails: true,
+        showSessionDetails: false,
+      });
+
+    } else if (myContact && myContact?.sessions?.length < 1) {
+
+      console.log('+ User logged in, profile created, at least one callsign, but no previous session...');
+      console.log('\n');
+
+      setPopUp({
+        tittle: t('warning'),
+        status: '',
+        message: t('contactForm.Session.missing'),
+        show: true,
+        showContactDetails: false,
+        showSessionDetails: true,
+      });
+
+    } else {
+
+      console.log('+ User logged in, profile created, at least one callsign, at least one session...');
+      console.log('\n');
+
+      setPopUp({
+        tittle: '',
+        status: '',
+        message: '',
+        show: false,
+        showContactDetails: false,
+        showSessionDetails: false,
+      });  
+    }
+
+  // eslint-disable-next-line
+  }, [myContact]);
 
   useEffect(() => {
 
-    lang = localStorage.getItem("language")? localStorage.getItem("language"): 'en';
-    setLanguage(lang);
+    setPopUp({
+      tittle: '',
+      status: '',
+      message: '',
+      show: false,
+      showContactDetails: false,
+      showSessionDetails: false,
+    });
+
+    const lang = localStorage.getItem("language")? localStorage.getItem("language"): 'en';
     i18n.changeLanguage(lang);
+    setLanguage(lang);
 
-    FirebaseAuthService.subscribeToAuthChanges(setUser);
+    if (!user) {
+      FirebaseAuthService.subscribeToAuthChanges(setUser);
+    }
 
-    handleGetMyContact();
+  // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
+
+    let unsubscribe = () => {};
+
+    if (user) {
+
+      unsubscribe = FirebaseFirestoreService.subscribeToDocChanges('contacts', handleDocChange);
+
+      if (!myContact)
+        setMyContact({ ...ContactInitialState, email: user.email });
+    }
+      
+    return () => unsubscribe();
 
   // eslint-disable-next-line
   }, [user]);
 
   useEffect(() => {
-    
-    const unsubscribe = FirebaseFirestoreService.subscribeToDocChanges('contacts', handleDocChange);
 
-    handleGetMyContact();
+    console.log(`+ About to process ${changedContacts.length} changed records:`);
+
+    let changes = [ ...contacts ];
+
+    for (const change of changedContacts) {
+
+      const email = change.contact.email;
+
+      if (change.type === "added" && !changes.find(elem => elem.email === email)) {
+        console.log("  New contact:", change.contact);
+        changes = [ ...changes,  { ...change.contact } ];
+      }
   
-    return () => unsubscribe();
+      if (change.type === "modified" && changes.findIndex(elem => elem.email === email)) {
+        console.log("  Modified contact: ", change.contact);
+        const idx = contacts.findIndex(elem => elem.email === email);
+        changes[idx] = { ...change.contact };
+      }
+  
+      if (change.type === "removed") {
+        console.log("  Removed contact: ", change.contact);
+        changes = [
+          ...changes.filter(elem => elem.email !== email)
+        ];        
+      }
+    }
+
+    console.log('\n');
+
+    setContacts([ ...changes ]);
 
   // eslint-disable-next-line
-  }, [contacts]);
+  }, [changedContacts]);
+  
+  let mySessionsLength = myContact?.sessions?.length? myContact.sessions.length: 0;
 
-  activeContactSessions = [ ...handleGetActiveSessions() ];
+  let myLastSession = mySessionsLength > 0? myContact.sessions[mySessionsLength - 1]: null;
 
-  mySessionsLength = myContact?.sessions?.length? myContact.sessions.length: 0;
+  const activeContactSessions = myLastSession? 
+    [ ...handleLoadActiveAndRecentSessions(myLastSession) ]:
+    [];
 
-  myLastSession = mySessionsLength > 0? myContact.sessions[mySessionsLength - 1]: null;
-
-  myLastSessionCenter = [
-    myLastSession?.latitude? myLastSession?.latitude: 0, 
-    myLastSession?.longitude? myLastSession?.longitude: 0,
-  ];
-
-  band = myLastSession? bands.find(elem => elem.value === myLastSession.band): null;
-  freq = myLastSession? bandFrequencies.find(elem => elem.value === myLastSession.frequency): null;
-  tone = myLastSession? CTCSSFrequencies.find(elem => elem.value === myLastSession.CTCSSFrequency): null;
-
-  bandPerimeter = band? band.range[myLastSession.perimeter]: null;
-
-  // console.log('User:');
-  // console.log(user);
+  // console.log(`Lang: ${language}`);
   // console.log('\n');
 
-  // console.log('Contacts:');
-  // console.log(contacts);
+  // console.log(`User: ${user}`);
+  // console.log('\n');
+
+  // console.log(`Contacts: ${contacts}`);
   // console.log('\n');
   
   // console.log('My Contact:');
@@ -241,46 +516,45 @@ function App() {
   // console.log(myLastSession);
   // console.log('\n');
 
-  // console.log('Active sessions:');
-  // console.log(activeContactSessions);
+  // console.log(`Active sessions: ${activeContactSessions}`);
   // console.log('\n');
 
   // console.log('about to render App...');
   // console.log('\n');
 
   return (
-    <ContactContext.Provider value={{ myContact, setMyContact, addEditContactFormHide, setAddEditContactFormHide }}>
+    <AppContext.Provider value={{ language }}>
+      <ToastContainer className="p-3" position='bottom-center'>
+        <Toast show={popUp.show} bg='dark' onClose={() => setPopUp({ ...popUp, show: false })}>
+          <Toast.Header>
+            <strong className="me-auto">{popUp.tittle}</strong>
+            <small>{popUp.status}</small>
+          </Toast.Header>
+        <Toast.Body className='text-white'>{popUp.message}</Toast.Body>
+        </Toast>
+      </ToastContainer>
+
       <Container className='App' fluid>
         <Row className='header'>
-          {/* <Col className='header-left' md></Col> */}
           <Col className='header-center' md>
-            {user? (
-              <>
-              {myLastSession? (
-              <p>
-                <span style={{ fontSize: '80%' }}>{band ? `${band.label} ` : null}</span>
-                <span style={{ color: '#ffff00', fontSize: '130%' }}>{freq ? freq.label : null}</span>
-                <span style={{ fontSize: '80%' }}>{tone ? ` ${tone.label}` : ` (${t('noTone')})`}</span>
-              </p>
-              ): (
-                null
-              )}
-              <p>
-                <Button variant={addEditContactFormHide? 'primary': 'secondary'} type="button" onClick={handleToggleShowHideForm} style={{ marginRight: '.5rem' }}>
-                  <FontAwesomeIcon icon={faPen} size="1x"/>
+            {user? (<>
+              <p style={{fontFamily: 'Digital7Mono', fontSize: '300%', color: '#ffff00', margin: 0}}>
+                <Button variant='primary' type="button" onClick={() => {}} style={{ marginRight: '.5rem' }}>
+                  <FontAwesomeIcon icon={faUserGroup} size="1x"/>
+                </Button>
+                <Button variant={!popUp.showSessionDetails? 'primary': 'secondary'} type="button" onClick={handleToggleShowSessionDetails} style={{ marginRight: '.5rem' }}>
+                  <FontAwesomeIcon icon={faTowerBroadcast} size="1x"/>
                 </Button>
                 {myLastSession?.checkOut > new Date()? 
-                  <QRXAirTime countDownDate={myLastSession.checkOut} />: ' 00h | 00m | 00s '}
-                {myLastSession?.callsign?
-                  <code>{` ${myLastSession.callsign}`}</code>: null}
-                <Button variant="primary" type="button" onClick={handleLogout} style={{ marginLeft: '.5rem' }}>
+                  <QRXAirTime countDownDate={myLastSession.checkOut} />: '00:00:00'}
+                <Button variant={!popUp.showContactDetails? 'primary': 'secondary'} type="button" onClick={handleToggleShowContactDetails} style={{ marginLeft: '.5rem' }}>
+                  <FontAwesomeIcon icon={faGear} size="1x"/>
+                </Button>
+                <Button variant="danger" type="button" onClick={handleLogout} style={{ marginLeft: '.5rem' }}>
                   <FontAwesomeIcon icon={faArrowRightFromBracket} size="1x"/>
                 </Button>
               </p>
-              </>
-            ):(
-              <>              
-              <p className="title">QRX Lookup {t('version')} <i>{version}</i></p>
+            </>):(<>
               <Form.Group className="mb-2" controlId="language">
                 <Form.Check inline label='English' value='en' onChange={(e) => changeLanguageHandler(e)} 
                     checked={language === 'en'} name="language" type='radio' id='0'/>
@@ -288,46 +562,52 @@ function App() {
                     checked={language === 'pt'} name="language" type='radio' id='-15'/>
               </Form.Group>
               <LoginForm/>
-              </>
-            )}
+            </>)}
           </Col>
-          {/* <Col className='header-right' md></Col> */}
         </Row>
         {user? (
           <Row className='main'>
-            <Col md='3'>
-              {!addEditContactFormHide?
-                <AddEditContactForm
+            <Col>
+              {popUp.showContactDetails && !popUp.showSessionDetails && myContact?
+                <ContactForm
                   contact={myContact} 
-                  handleUpdateContact={handleUpdateContact} 
-                  setAddEditContactFormHide={setAddEditContactFormHide}/>
+                  handleUpdateContact={handleUpdateContact}
+                  validCallsign={handleIsValidCallsign} />
               :null}
+
+              {popUp.showSessionDetails && !popUp.showContactDetails && myContact?
+                <ContactSessionForm
+                  contact={myContact} 
+                  handleUpdateContact={handleUpdateContact}
+                  validCallsign={handleIsValidCallsign} />
+              :null}
+
+              {!popUp.showSessionDetails && !popUp.showContactDetails & mySessionsLength > 0? (<>
+                  <QRXRadar
+                    contact={myContact}
+                    activeContactSessions={activeContactSessions}
+                    center={radarCenter} /> 
+                  <QRXTable
+                    contact={myContact}
+                    activeContactSessions={activeContactSessions}
+                    changeRadarCenter={handleChangeRadarCenter} />
+              </>) :null}
             </Col>
-            {myLastSession?
-              <Col md={addEditContactFormHide? '12': '9'}>
-                  <QRXRadar 
-                    centerContactSession={myLastSessionCenter}
-                    bandPerimeter={bandPerimeter}
-                    activeContactSessions={activeContactSessions}/> 
-                  {activeContactSessions.length > 0?
-                    <QRXTable 
-                      center={myLastSessionCenter} 
-                      activeAndZombieSessions={activeContactSessions}/>
-                  :null}
-              </Col>
-            :null}
           </Row>
         ):(
           <Row className='main'>
             <Col md='12'>
               <center>
-              <h1>{t('welcome')}!</h1>
+                <b>{t('welcome')}!</b>
+                <h3>{t('appName')} {t('version')} <code>{QRXLookupConfig.appVersion}</code></h3>
+                <b><i>{t('readme.tittle')}?</i></b>
+                <p>{t('readme')}</p>
               </center>
             </Col>
           </Row>
         )}
       </Container>
-    </ContactContext.Provider>
+    </AppContext.Provider>
   );
 }
 

@@ -1,89 +1,121 @@
-const credit = {
-    attrib: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    attribURL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+const appVersion = '1.1-beta';
+
+const locales = {
+    pt: 'pt-PT',
+    en: 'en-US',
+}
+
+const OpenStreetMapTileLayer = {
+    
+    default: {
+        attrib: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    },
+
+    stamen: {                
+        attrib: 'Pin PNGs <a href="https://www.vecteezy.com/free-png/location">by Vecteezy</a> - Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        url: 'https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}{r}.png',
+        maxZoom: 14,
+    },
 };
 
+// Remaining air time when some action is needed
+const criticalAirTime = 10;
+
+// Extra minutes each air time increased
 const extraAirTime = 30;
 
+// Lesser minutes each air time is decreased
+const lessAirTime = -15;
+
+// Minutes an expired sessions will remain visible
+const ghostAirTime = 60 * 24;
+
+// Maximum number of radios per session
+const maxRadios = 4;
+
+// Acepted similarity between two callsigns
+const similarityPct = 0.90;
+
 const bands = [
-    { label: "PMR | FM", value: "pmr.70cm-fm", range: {urban: 1, rural: 3} },
-    { label: "CB | USB", value: "cb.11m-usb", range: {urban: 20, rural: 50} },
-    { label: "CB | LSB", value: "cb.11m-lsb", range: {urban: 20, rural: 50} },
-    { label: "CB | AM", value: "cb.11m-am", range: {urban: 5, rural: 10} },
-    { label: "CB | FM", value: "cb.11m-fm", range: {urban: 5, rural: 10} },
-    { label: "LPD | FM", value: "lpd.70cm-fm", range: {urban: 0.5, rural: 1} }
+    { label: "PMR",      value: "pmr.70cm-fm", range: {urban: 1,   rural: 3 }, offset: 500,  fontColor: 'green',  pinIcon: "/img/vecteezy-map-pin-green.png"  },
+    { label: "CB | USB", value: "cb.11m-usb",  range: {urban: 20,  rural: 50}, offset: 5000, fontColor: 'blue',   pinIcon: "/img/vecteezy-map-pin-blue.png"   },
+    { label: "CB | LSB", value: "cb.11m-lsb",  range: {urban: 20,  rural: 50}, offset: 5000, fontColor: 'blue',   pinIcon: "/img/vecteezy-map-pin-blue.png"   },
+    { label: "CB | AM",  value: "cb.11m-am",   range: {urban: 5,   rural: 10}, offset: 2500, fontColor: 'blue',   pinIcon: "/img/vecteezy-map-pin-blue.png"   },
+    { label: "CB | FM",  value: "cb.11m-fm",   range: {urban: 5,   rural: 10}, offset: 2500, fontColor: 'blue',   pinIcon: "/img/vecteezy-map-pin-blue.png"   },
+    { label: "LPD",      value: "lpd.70cm-fm", range: {urban: 0.5, rural: 1 }, offset: 250,  fontColor: 'purple', pinIcon: "/img/vecteezy-map-pin-lilac.png"  }
 ];
 
 const bandFrequencies = [
-    { label: "CH-01 | 433.075 MHz", value: "433.075", link: "lpd.70cm-fm" },
-    { label: "CH-02 | 433.100 MHz", value: "433.100", link: "lpd.70cm-fm" },
-    { label: "CH-03 | 433.125 MHz", value: "433.125", link: "lpd.70cm-fm" },
-    { label: "CH-04 | 433.150 MHz", value: "433.150", link: "lpd.70cm-fm" },
-    { label: "CH-05 | 433.175 MHz", value: "433.175", link: "lpd.70cm-fm" },
-    { label: "CH-06 | 433.200 MHz", value: "433.200", link: "lpd.70cm-fm" },
-    { label: "CH-07 | 433.225 MHz", value: "433.225", link: "lpd.70cm-fm" },
-    { label: "CH-08 | 433.250 MHz", value: "433.250", link: "lpd.70cm-fm" },
-    { label: "CH-09 | 433.275 MHz", value: "433.275", link: "lpd.70cm-fm" },
-    { label: "CH-10 | 433.300 MHz", value: "433.300", link: "lpd.70cm-fm" },
-    { label: "CH-11 | 433.325 MHz", value: "433.325", link: "lpd.70cm-fm" },
-    { label: "CH-12 | 433.350 MHz", value: "433.350", link: "lpd.70cm-fm" },
-    { label: "CH-13 | 433.375 MHz", value: "433.375", link: "lpd.70cm-fm" },
-    { label: "CH-14 | 433.400 MHz", value: "433.400", link: "lpd.70cm-fm" },
-    { label: "CH-15 | 433.425 MHz", value: "433.425", link: "lpd.70cm-fm" },
-    { label: "CH-16 | 433.450 MHz", value: "433.450", link: "lpd.70cm-fm" },
-    { label: "CH-17 | 433.475 MHz", value: "433.475", link: "lpd.70cm-fm" },
-    { label: "CH-18 | 433.500 MHz", value: "433.500", link: "lpd.70cm-fm" },
-    { label: "CH-19 | 433.525 MHz", value: "433.525", link: "lpd.70cm-fm" },
-    { label: "CH-20 | 433.550 MHz", value: "433.550", link: "lpd.70cm-fm" },
-    { label: "CH-21 | 433.575 MHz", value: "433.575", link: "lpd.70cm-fm" },
-    { label: "CH-22 | 433.600 MHz", value: "433.600", link: "lpd.70cm-fm" },
-    { label: "CH-23 | 433.625 MHz", value: "433.625", link: "lpd.70cm-fm" },
-    { label: "CH-24 | 433.650 MHz", value: "433.650", link: "lpd.70cm-fm" },
-    { label: "CH-25 | 433.675 MHz", value: "433.675", link: "lpd.70cm-fm" },
-    { label: "CH-26 | 433.700 MHz", value: "433.700", link: "lpd.70cm-fm" },
-    { label: "CH-27 | 433.725 MHz", value: "433.725", link: "lpd.70cm-fm" },
-    { label: "CH-28 | 433.750 MHz", value: "433.750", link: "lpd.70cm-fm" },
-    { label: "CH-29 | 433.775 MHz", value: "433.775", link: "lpd.70cm-fm" },
-    { label: "CH-30 | 433.800 MHz", value: "433.800", link: "lpd.70cm-fm" },
-    { label: "CH-31 | 433.825 MHz", value: "433.825", link: "lpd.70cm-fm" },
-    { label: "CH-32 | 433.850 MHz", value: "433.850", link: "lpd.70cm-fm" },
-    { label: "CH-33 | 433.875 MHz", value: "433.875", link: "lpd.70cm-fm" },
-    { label: "CH-34 | 433.900 MHz", value: "433.900", link: "lpd.70cm-fm" },
-    { label: "CH-35 | 433.925 MHz", value: "433.925", link: "lpd.70cm-fm" },
-    { label: "CH-36 | 433.950 MHz", value: "433.950", link: "lpd.70cm-fm" },
-    { label: "CH-37 | 433.975 MHz", value: "433.975", link: "lpd.70cm-fm" },
-    { label: "CH-38 | 434.000 MHz", value: "434.000", link: "lpd.70cm-fm" },
-    { label: "CH-39 | 434.025 MHz", value: "434.025", link: "lpd.70cm-fm" },
-    { label: "CH-40 | 434.050 MHz", value: "434.050", link: "lpd.70cm-fm" },
-    { label: "CH-41 | 434.075 MHz", value: "434.075", link: "lpd.70cm-fm" },
-    { label: "CH-42 | 434.100 MHz", value: "434.100", link: "lpd.70cm-fm" },
-    { label: "CH-43 | 434.125 MHz", value: "434.125", link: "lpd.70cm-fm" },
-    { label: "CH-44 | 434.150 MHz", value: "434.150", link: "lpd.70cm-fm" },
-    { label: "CH-45 | 434.175 MHz", value: "434.175", link: "lpd.70cm-fm" },
-    { label: "CH-46 | 434.200 MHz", value: "434.200", link: "lpd.70cm-fm" },
-    { label: "CH-47 | 434.225 MHz", value: "434.225", link: "lpd.70cm-fm" },
-    { label: "CH-48 | 434.250 MHz", value: "434.250", link: "lpd.70cm-fm" },
-    { label: "CH-49 | 434.275 MHz", value: "434.275", link: "lpd.70cm-fm" },
-    { label: "CH-50 | 434.300 MHz", value: "434.300", link: "lpd.70cm-fm" },
-    { label: "CH-51 | 434.325 MHz", value: "434.325", link: "lpd.70cm-fm" },
-    { label: "CH-52 | 434.350 MHz", value: "434.350", link: "lpd.70cm-fm" },
-    { label: "CH-53 | 434.375 MHz", value: "434.375", link: "lpd.70cm-fm" },
-    { label: "CH-54 | 434.400 MHz", value: "434.400", link: "lpd.70cm-fm" },
-    { label: "CH-55 | 434.425 MHz", value: "434.425", link: "lpd.70cm-fm" },
-    { label: "CH-56 | 434.450 MHz", value: "434.450", link: "lpd.70cm-fm" },
-    { label: "CH-57 | 434.475 MHz", value: "434.475", link: "lpd.70cm-fm" },
-    { label: "CH-58 | 434.500 MHz", value: "434.500", link: "lpd.70cm-fm" },
-    { label: "CH-59 | 434.525 MHz", value: "434.525", link: "lpd.70cm-fm" },
-    { label: "CH-60 | 434.550 MHz", value: "434.550", link: "lpd.70cm-fm" },
-    { label: "CH-61 | 434.575 MHz", value: "434.575", link: "lpd.70cm-fm" },
-    { label: "CH-62 | 434.600 MHz", value: "434.600", link: "lpd.70cm-fm" },
-    { label: "CH-63 | 434.625 MHz", value: "434.625", link: "lpd.70cm-fm" },
-    { label: "CH-64 | 434.650 MHz", value: "434.650", link: "lpd.70cm-fm" },
-    { label: "CH-65 | 434.675 MHz", value: "434.675", link: "lpd.70cm-fm" },
-    { label: "CH-66 | 434.700 MHz", value: "434.700", link: "lpd.70cm-fm" },
-    { label: "CH-67 | 434.725 MHz", value: "434.725", link: "lpd.70cm-fm" },
-    { label: "CH-68 | 434.750 MHz", value: "434.750", link: "lpd.70cm-fm" },
-    { label: "CH-69 | 434.775 MHz", value: "434.775", link: "lpd.70cm-fm" },
+    { label: "CH-01", value: "433.075", link: "lpd.70cm-fm" },
+    { label: "CH-02", value: "433.100", link: "lpd.70cm-fm" },
+    { label: "CH-03", value: "433.125", link: "lpd.70cm-fm" },
+    { label: "CH-04", value: "433.150", link: "lpd.70cm-fm" },
+    { label: "CH-05", value: "433.175", link: "lpd.70cm-fm" },
+    { label: "CH-06", value: "433.200", link: "lpd.70cm-fm" },
+    { label: "CH-07", value: "433.225", link: "lpd.70cm-fm" },
+    { label: "CH-08", value: "433.250", link: "lpd.70cm-fm" },
+    { label: "CH-09", value: "433.275", link: "lpd.70cm-fm" },
+    { label: "CH-10", value: "433.300", link: "lpd.70cm-fm" },
+    { label: "CH-11", value: "433.325", link: "lpd.70cm-fm" },
+    { label: "CH-12", value: "433.350", link: "lpd.70cm-fm" },
+    { label: "CH-13", value: "433.375", link: "lpd.70cm-fm" },
+    { label: "CH-14", value: "433.400", link: "lpd.70cm-fm" },
+    { label: "CH-15", value: "433.425", link: "lpd.70cm-fm" },
+    { label: "CH-16", value: "433.450", link: "lpd.70cm-fm" },
+    { label: "CH-17", value: "433.475", link: "lpd.70cm-fm" },
+    { label: "CH-18", value: "433.500", link: "lpd.70cm-fm" },
+    { label: "CH-19", value: "433.525", link: "lpd.70cm-fm" },
+    { label: "CH-20", value: "433.550", link: "lpd.70cm-fm" },
+    { label: "CH-21", value: "433.575", link: "lpd.70cm-fm" },
+    { label: "CH-22", value: "433.600", link: "lpd.70cm-fm" },
+    { label: "CH-23", value: "433.625", link: "lpd.70cm-fm" },
+    { label: "CH-24", value: "433.650", link: "lpd.70cm-fm" },
+    { label: "CH-25", value: "433.675", link: "lpd.70cm-fm" },
+    { label: "CH-26", value: "433.700", link: "lpd.70cm-fm" },
+    { label: "CH-27", value: "433.725", link: "lpd.70cm-fm" },
+    { label: "CH-28", value: "433.750", link: "lpd.70cm-fm" },
+    { label: "CH-29", value: "433.775", link: "lpd.70cm-fm" },
+    { label: "CH-30", value: "433.800", link: "lpd.70cm-fm" },
+    { label: "CH-31", value: "433.825", link: "lpd.70cm-fm" },
+    { label: "CH-32", value: "433.850", link: "lpd.70cm-fm" },
+    { label: "CH-33", value: "433.875", link: "lpd.70cm-fm" },
+    { label: "CH-34", value: "433.900", link: "lpd.70cm-fm" },
+    { label: "CH-35", value: "433.925", link: "lpd.70cm-fm" },
+    { label: "CH-36", value: "433.950", link: "lpd.70cm-fm" },
+    { label: "CH-37", value: "433.975", link: "lpd.70cm-fm" },
+    { label: "CH-38", value: "434.000", link: "lpd.70cm-fm" },
+    { label: "CH-39", value: "434.025", link: "lpd.70cm-fm" },
+    { label: "CH-40", value: "434.050", link: "lpd.70cm-fm" },
+    { label: "CH-41", value: "434.075", link: "lpd.70cm-fm" },
+    { label: "CH-42", value: "434.100", link: "lpd.70cm-fm" },
+    { label: "CH-43", value: "434.125", link: "lpd.70cm-fm" },
+    { label: "CH-44", value: "434.150", link: "lpd.70cm-fm" },
+    { label: "CH-45", value: "434.175", link: "lpd.70cm-fm" },
+    { label: "CH-46", value: "434.200", link: "lpd.70cm-fm" },
+    { label: "CH-47", value: "434.225", link: "lpd.70cm-fm" },
+    { label: "CH-48", value: "434.250", link: "lpd.70cm-fm" },
+    { label: "CH-49", value: "434.275", link: "lpd.70cm-fm" },
+    { label: "CH-50", value: "434.300", link: "lpd.70cm-fm" },
+    { label: "CH-51", value: "434.325", link: "lpd.70cm-fm" },
+    { label: "CH-52", value: "434.350", link: "lpd.70cm-fm" },
+    { label: "CH-53", value: "434.375", link: "lpd.70cm-fm" },
+    { label: "CH-54", value: "434.400", link: "lpd.70cm-fm" },
+    { label: "CH-55", value: "434.425", link: "lpd.70cm-fm" },
+    { label: "CH-56", value: "434.450", link: "lpd.70cm-fm" },
+    { label: "CH-57", value: "434.475", link: "lpd.70cm-fm" },
+    { label: "CH-58", value: "434.500", link: "lpd.70cm-fm" },
+    { label: "CH-59", value: "434.525", link: "lpd.70cm-fm" },
+    { label: "CH-60", value: "434.550", link: "lpd.70cm-fm" },
+    { label: "CH-61", value: "434.575", link: "lpd.70cm-fm" },
+    { label: "CH-62", value: "434.600", link: "lpd.70cm-fm" },
+    { label: "CH-63", value: "434.625", link: "lpd.70cm-fm" },
+    { label: "CH-64", value: "434.650", link: "lpd.70cm-fm" },
+    { label: "CH-65", value: "434.675", link: "lpd.70cm-fm" },
+    { label: "CH-66", value: "434.700", link: "lpd.70cm-fm" },
+    { label: "CH-67", value: "434.725", link: "lpd.70cm-fm" },
+    { label: "CH-68", value: "434.750", link: "lpd.70cm-fm" },
+    { label: "CH-69", value: "434.775", link: "lpd.70cm-fm" },
     
     { label: "CH-01 | 446.00625 MHz", value: "446.00625", link: "pmr.70cm-fm" },
     { label: "CH-02 | 446.01875 MHz", value: "446.01875", link: "pmr.70cm-fm" },
@@ -197,18 +229,144 @@ const CTCSSFrequencies = [
     { label: "254.1 Hz", value: "254.1" },
 ];
 
+const bandDetails = (band) => {
+    return bands.find(elem => elem.value === band);
+}
+
+const frequencyDetails = (frequency) => {
+    return bandFrequencies.find(elem => elem.value === frequency);
+}
+
+const toneDetails = (tone) => {
+    return CTCSSFrequencies.find(elem => elem.value === tone);
+}
+
+const editDistance = (s1, s2) => {
+    s1 = s1.toLowerCase().replace(/\s/g, "");
+    s2 = s2.toLowerCase().replace(/\s/g, "");
+    var costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+      var lastValue = i;
+      for (let j = 0; j <= s2.length; j++) {
+        if (i === 0) {
+          costs[j] = j;
+        } else {
+          if (j > 0) {
+            var newValue = costs[j - 1];
+            if (s1.charAt(i - 1) !== s2.charAt(j - 1))
+              newValue = Math.min(Math.min(newValue, lastValue),
+                costs[j]) + 1;
+            costs[j - 1] = lastValue;
+            lastValue = newValue;
+          }
+        }
+      }
+      if (i > 0) costs[s2.length] = lastValue;
+    }
+    return costs[s2.length];
+}
+  
+const similarity = (s1, s2) => {
+    let longer = s1;
+    let shorter = s2;
+    if (s1.length < s2.length) {
+        longer = s2;
+        shorter = s1;
+    }
+    let longerLength = longer.length;
+    if (longerLength === 0) {
+        return 1.0;
+    }
+    return (longerLength - editDistance(longer, shorter)) / parseFloat(longerLength);
+}
+
+const randomOffsetWithin = (radius, from) => {
+
+    const [ latd, long ] = from;
+
+    // Earth’s radius, sphere
+    const R = 6378137;
+
+    // Offsets in meters
+    const dn = Math.floor(Math.random() * radius);
+    const de = Math.floor(Math.random() * radius);
+
+    // Coordinate offsets in radians
+    const dLatd = dn/R;
+    const dLong = de/(R * Math.cos(Math.PI * latd/180));
+
+    // OffsetPosition, decimal degrees
+    const latdO = latd + dLatd * 180/Math.PI;
+    const longO = long + dLong * 180/Math.PI;
+
+    return [latdO, longO];
+}
+
+function distance(latd1, long1, latd2, long2) {
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(latd2-latd1);  // deg2rad below
+    var dLon = deg2rad(long2-long1); 
+    var a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(latd1)) * Math.cos(deg2rad(latd2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2)
+      ; 
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    var d = R * c; // Distance in km
+    return d;
+}
+
+function bearing(latd1, long1, latd2, long2) {
+    latd1 = deg2rad(latd1);
+    long1 = deg2rad(long1);
+    latd2 = deg2rad(latd2);
+    long2 = deg2rad(long2);
+
+    const y = Math.sin(long2 - long1) * Math.cos(latd2);
+    const x = Math.cos(latd1) * Math.sin(latd2) - Math.sin(latd1) * Math.cos(latd2) * Math.cos(long2 - long1);
+    let brng = Math.atan2(y, x);
+    brng = rad2deg(brng);
+
+    return (brng + 360) % 360;
+}
+  
+function deg2rad(deg) {
+    return deg * (Math.PI/180)
+}
+
+function rad2deg(radians) {
+    return radians * 180 / Math.PI;
+}  
+
 const geoapifyURL = (latitude, longitude) => {
     const apiKey = 'ec1d0d714dcf40b1b885779c7599b467';
-    const apiURL = `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&apiKey=${apiKey}`;
+    const apiURL = `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&type=street&apiKey=${apiKey}`;
     return apiURL;
 }
 
 const QRXLookupConfig = {
-    credit,
+    appVersion,
+    locales,
+    OpenStreetMapTileLayer,
+    criticalAirTime,
     extraAirTime,
+    lessAirTime,
+    ghostAirTime,
+    maxRadios,
+    similarityPct,
     bands,
+    bandDetails,
     bandFrequencies,
+    frequencyDetails,
     CTCSSFrequencies,
+    editDistance,
+    similarity,
+    toneDetails,
+    randomOffsetWithin,
+    distance,
+    bearing,
+    deg2rad,
+    rad2deg,
     geoapifyURL,
 };
 

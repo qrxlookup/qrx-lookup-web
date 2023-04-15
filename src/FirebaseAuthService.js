@@ -64,7 +64,8 @@ import {
     signInWithPopup, 
     GoogleAuthProvider, 
     FacebookAuthProvider, 
-    TwitterAuthProvider 
+    TwitterAuthProvider,
+    linkWithPopup
 } from "firebase/auth";
 
 const auth = getAuth(firebase);
@@ -144,6 +145,17 @@ const loginWithGoogle = () => {
         const user = result.user; // eslint-disable-line
         // IdP data available using getAdditionalUserInfo(result)
         // ...
+
+        linkWithPopup(user, new FacebookAuthProvider()).then((result) => {
+            // Accounts successfully linked.
+            const facebookCredential = FacebookAuthProvider.credentialFromResult(result);  // eslint-disable-line
+            const facebookUser = result.user;  // eslint-disable-line
+            // ...
+        }).catch((error) => {
+            // Handle Errors here.
+            // ...
+        });
+
     }).catch((error) => {
         // Handle Errors here.
         const errorCode = error.code; // eslint-disable-line
@@ -153,10 +165,14 @@ const loginWithGoogle = () => {
         // The AuthCredential type that was used.
         const credential = GoogleAuthProvider.credentialFromError(error); // eslint-disable-line
         // ...
+        if (error.code === 'auth/account-exists-with-different-credential') {
+            alert(error.message);
+        }
     });
 }
 
 const loginWithFacebook = () => {
+    // getRedirectResult(auth)
     signInWithPopup(auth, new FacebookAuthProvider())
     .then((result) => {
         // The signed-in user info.
@@ -168,6 +184,16 @@ const loginWithFacebook = () => {
 
         // IdP data available using getAdditionalUserInfo(result)
         // ...
+
+        linkWithPopup(user, new GoogleAuthProvider()).then((result) => {
+            // Accounts successfully linked.
+            const facebookCredential = GoogleAuthProvider.credentialFromResult(result);  // eslint-disable-line
+            const facebookUser = result.user;  // eslint-disable-line
+            // ...
+        }).catch((error) => {
+            // Handle Errors here.
+            // ...
+        });
     })
     .catch((error) => {
         // Handle Errors here.

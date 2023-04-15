@@ -28,14 +28,14 @@ const QRXAirTime = ({ countDownDate }) => {
 
     }, [countDownDate]);
 
-    let countDown = '00h | 00m | 00s';
+    let countDown = '00:00:00';
 
     if (time > 0) {
         countDown  = '';
         //countDown += `${Math.floor(time / DAY)}`.padStart(2, "0") + " days | ";
-        countDown += `${Math.floor((time / HOUR) % 24)}`.padStart(2, "0") + "h | ";
-        countDown += `${Math.floor((time / MINUTE) % 60)}`.padStart(2, "0") + "m | ";
-        countDown += `${Math.floor((time / SECOND) % 60)}`.padStart(2, "0") + "s";
+        countDown += `${Math.floor((time / HOUR) % 24)}`.padStart(2, "0") + ":";
+        countDown += `${Math.floor((time / MINUTE) % 60)}`.padStart(2, "0") + ":";
+        countDown += `${Math.floor((time / SECOND) % 60)}`.padStart(2, "0");
     }
 
     return countDown;

@@ -1,105 +1,91 @@
-import { useTranslation } from "react-i18next";
-
-import QRXLookupConfig from '../QRXLookupConfig';
-
+// import { useTranslation } from "react-i18next";
+// import { useState, useEffect } from 'react';
 import Table from 'react-bootstrap/Table';
+// import Button from 'react-bootstrap/Button';
 
-function distance(lat1, lon1, lat2, lon2) {
-    var R = 6371; // Radius of the earth in km
-    var dLat = deg2rad(lat2-lat1);  // deg2rad below
-    var dLon = deg2rad(lon2-lon1); 
-    var a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2)
-      ; 
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    var d = R * c; // Distance in km
-    return d;
-  }
+// import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+// import { faUserGroup } from "@fortawesome/free-solid-svg-icons";
 
-function bearing(startLat, startLng, destLat, destLng) {
-    startLat = deg2rad(startLat);
-    startLng = deg2rad(startLng);
-    destLat = deg2rad(destLat);
-    destLng = deg2rad(destLng);
+function QRXTable({ contact, activeContactSessions, changeRadarCenter }) {
 
-    const y = Math.sin(destLng - startLng) * Math.cos(destLat);
-    const x = Math.cos(startLat) * Math.sin(destLat) - Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLng - startLng);
-    let brng = Math.atan2(y, x);
-    brng = rad2deg(brng);
+    // const { t } = useTranslation();
 
-    return (brng + 360) % 360;
-}
-  
-function deg2rad(deg) {
-    return deg * (Math.PI/180)
-}
+    const sortField = contact.sort.field.toLowerCase();
+    const sortDescending = contact.sort.descending;
 
-function rad2deg(radians) {
-    return radians * 180 / Math.PI;
-}  
+    switch (sortField) {
 
-function QRXTable({ center, activeAndZombieSessions }) {
+        case 'callsign':
+        case 'operator':
+        case 'status':
+        case 'band':
+        case 'frequency':
+        case 'locality':
+        case 'city':
+        case 'country':
+            sortDescending?
+                activeContactSessions.sort((s1, s2) => -1 * s1[sortField].localeCompare(s2[sortField])):
+                activeContactSessions.sort((s1, s2) => s1[sortField].localeCompare(s2[sortField]));
+        break;
+        case 'distance':
+        case 'bearing':
+            sortDescending?
+                activeContactSessions.sort((s1, s2) => s2[sortField] - s1[sortField]):
+                activeContactSessions.sort((s1, s2) => s1[sortField] - s2[sortField]);
+        break;
+        default:
+        break;
+    }
 
-    const { t } = useTranslation();
+    let radiosMarkups = [];
 
-    const bands = QRXLookupConfig.bands;
-    const bandFrequencies = QRXLookupConfig.bandFrequencies;
-    const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;  
-  
+    activeContactSessions.forEach(session => {
+
+        const { 
+            sessionId, status, operator,
+            latitude, longitude, distance, bearing, countryCode, country, city, locality,
+            radios
+        } = { ...session };
+
+        let ghostSessionStyle = null;
+        if (status === 'inactive') {
+            ghostSessionStyle = {color: '#808080', fontStyle: 'normal'};
+        }
+
+        let k = 0;
+        radios.forEach((r) => {            
+            if (!contact.callsigns.includes(r.callsign)) {
+                let [ channel ] = r.frequency.replace(/\s/g, "").split("|");
+                radiosMarkups.push(
+                    <tr key={`${sessionId}-${k}`} onClick={() => changeRadarCenter([latitude, longitude])}>
+                        <td>                            
+                            <span style={{ fontSize: '80%' }}>
+                                {`${r.band} | ${channel}`} {r.tone? ` | ${r.tone} `: ''}
+                            </span>
+                            <span style={{ ...ghostSessionStyle, fontSize: '90%' }}>                                    
+                                <b>{r.callsign} {operator? `(${operator})`: null}</b>
+                            </span>
+                            <br />
+                            <span style={{ fontSize: '80%' }}>
+                                {`${distance}km / ${bearing}° `}
+                            </span>
+                            <span style={{ fontSize: '80%' }}>
+                                {`${locality}, ${city}, ${countryCode || country}`}
+                            </span>
+                        </td>
+                    </tr>
+                );
+            } k = k + 1;
+        });
+    })
+
+    // console.log('about to render QRXTable...');
+    // console.log('\n');
+
     return (
         <Table responsive striped bordered hover>
-            <thead>
-                <tr>
-                    <th>{t('contactForm.CallSign')}</th>
-                    <th>{t('contactForm.BandAndModulation')}</th>
-                    <th>{t('contactForm.ChannelAndFrequency')}</th>
-                    <th>{t('contactForm.CTCSSFrequency')}</th>
-                    <th>{t('contactForm.Maidenhead')}</th>
-                    <th>{t('contactForm.Distance')}</th>
-                    <th>{t('contactForm.Bearing')}</th>
-                    <th>{t('contactForm.Locality')}</th>
-                    <th>{t('contactForm.City')}</th>
-                    <th>{t('contactForm.Country')}</th>
-                </tr>
-            </thead>
             <tbody>
-                {activeAndZombieSessions.map((item, idx) => {
-
-                    const band = bands.find(elem => elem.value === item.band);
-                    const freq = bandFrequencies.find(elem => elem.value === item.frequency);
-                    const tone = CTCSSFrequencies.find(elem => elem.value === item.CTCSSFrequency);
-
-                    const dist = distance(
-                        center[0],
-                        center[1],
-                        item.latitude,
-                        item.longitude,
-                    ).toFixed(2);
-
-                    const bear = bearing(
-                        center[0],
-                        center[1],
-                        item.latitude,
-                        item.longitude,
-                    ).toFixed(0);
-
-                    return (
-                        <tr key={item.sessionId}>
-                            <th>{item.callsign}</th>
-                            <th>{band?.label? band.label: ''}</th>
-                            <th>{freq?.label? freq.label: ''}</th>
-                            <th>{tone?.label? tone.label: ''}</th>
-                            <th>{item.maidenhead}</th>
-                            <th>{dist}km</th>
-                            <th>{bear}°</th>
-                            <th>{item.locality}</th>
-                            <th>{item.city}</th>
-                            <th>{item.country}</th>
-                        </tr>
-                    );
-                })}
+                {radiosMarkups}
             </tbody>
         </Table>
     );
