@@ -135,7 +135,7 @@ const subscribeToAuthChanges = (handleAuthChange) => {
     });
 }
 
-const loginWithGoogle = () => {
+const loginWithGoogle = (linkAccounts) => {
     signInWithPopup(auth, new GoogleAuthProvider())
     .then((result) => {
         // This gives you a Google Access Token. You can use it to access the Google API.
@@ -146,15 +146,17 @@ const loginWithGoogle = () => {
         // IdP data available using getAdditionalUserInfo(result)
         // ...
 
-        linkWithPopup(user, new FacebookAuthProvider()).then((result) => {
-            // Accounts successfully linked.
-            const facebookCredential = FacebookAuthProvider.credentialFromResult(result);  // eslint-disable-line
-            const facebookUser = result.user;  // eslint-disable-line
-            // ...
-        }).catch((error) => {
-            // Handle Errors here.
-            // ...
-        });
+        if (linkAccounts) {
+            linkWithPopup(user, new FacebookAuthProvider()).then((result) => {
+                // Accounts successfully linked.
+                const facebookCredential = FacebookAuthProvider.credentialFromResult(result);  // eslint-disable-line
+                const facebookUser = result.user;  // eslint-disable-line
+                // ...
+            }).catch((error) => {
+                // Handle Errors here.
+                // ...
+            });
+        }
 
     }).catch((error) => {
         // Handle Errors here.
@@ -171,7 +173,7 @@ const loginWithGoogle = () => {
     });
 }
 
-const loginWithFacebook = () => {
+const loginWithFacebook = (linkAccounts) => {
     // getRedirectResult(auth)
     signInWithPopup(auth, new FacebookAuthProvider())
     .then((result) => {
@@ -185,15 +187,17 @@ const loginWithFacebook = () => {
         // IdP data available using getAdditionalUserInfo(result)
         // ...
 
-        linkWithPopup(user, new GoogleAuthProvider()).then((result) => {
-            // Accounts successfully linked.
-            const facebookCredential = GoogleAuthProvider.credentialFromResult(result);  // eslint-disable-line
-            const facebookUser = result.user;  // eslint-disable-line
-            // ...
-        }).catch((error) => {
-            // Handle Errors here.
-            // ...
-        });
+        if (linkAccounts) {
+            linkWithPopup(user, new GoogleAuthProvider()).then((result) => {
+                // Accounts successfully linked.
+                const facebookCredential = GoogleAuthProvider.credentialFromResult(result);  // eslint-disable-line
+                const facebookUser = result.user;  // eslint-disable-line
+                // ...
+            }).catch((error) => {
+                // Handle Errors here.
+                // ...
+            });
+        }
     })
     .catch((error) => {
         // Handle Errors here.

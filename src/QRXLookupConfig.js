@@ -1,4 +1,4 @@
-const appVersion = '1.1-beta';
+const appVersion = '1.2-beta';
 
 const locales = {
     pt: 'pt-PT',
@@ -8,7 +8,7 @@ const locales = {
 const OpenStreetMapTileLayer = {
     
     default: {
-        attrib: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attrib: 'Markers pin <a href="https://www.vecteezy.com/free-png/location">by Vecteezy</a> - Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     },
 
@@ -117,22 +117,22 @@ const bandFrequencies = [
     { label: "CH-68", value: "434.750", link: "lpd.70cm-fm" },
     { label: "CH-69", value: "434.775", link: "lpd.70cm-fm" },
     
-    { label: "CH-01 | 446.00625 MHz", value: "446.00625", link: "pmr.70cm-fm" },
-    { label: "CH-02 | 446.01875 MHz", value: "446.01875", link: "pmr.70cm-fm" },
-    { label: "CH-03 | 446.03125 MHz", value: "446.03125", link: "pmr.70cm-fm" },
-    { label: "CH-04 | 446.04375 MHz", value: "446.04375", link: "pmr.70cm-fm" },
-    { label: "CH-05 | 446.05625 MHz", value: "446.05625", link: "pmr.70cm-fm" },
-    { label: "CH-06 | 446.06875 MHz", value: "446.06875", link: "pmr.70cm-fm" },
-    { label: "CH-07 | 446.08125 MHz", value: "446.08125", link: "pmr.70cm-fm" },
-    { label: "CH-08 | 446.09375 MHz", value: "446.09375", link: "pmr.70cm-fm" },
-    { label: "CH-09 | 446.10625 MHz", value: "446.10625", link: "pmr.70cm-fm" },
-    { label: "CH-10 | 446.11875 MHz", value: "446.11875", link: "pmr.70cm-fm" },
-    { label: "CH-11 | 446.13125 MHz", value: "446.13125", link: "pmr.70cm-fm" },
-    { label: "CH-12 | 446.14375 MHz", value: "446.14375", link: "pmr.70cm-fm" },
-    { label: "CH-13 | 446.15625 MHz", value: "446.15625", link: "pmr.70cm-fm" },
-    { label: "CH-14 | 446.16875 MHz", value: "446.16875", link: "pmr.70cm-fm" },
-    { label: "CH-15 | 446.18125 MHz", value: "446.18125", link: "pmr.70cm-fm" },
-    { label: "CH-16 | 446.19375 MHz", value: "446.19375", link: "pmr.70cm-fm" },
+    { label: "CH-01", value: "446.00625", link: "pmr.70cm-fm" },
+    { label: "CH-02", value: "446.01875", link: "pmr.70cm-fm" },
+    { label: "CH-03", value: "446.03125", link: "pmr.70cm-fm" },
+    { label: "CH-04", value: "446.04375", link: "pmr.70cm-fm" },
+    { label: "CH-05", value: "446.05625", link: "pmr.70cm-fm" },
+    { label: "CH-06", value: "446.06875", link: "pmr.70cm-fm" },
+    { label: "CH-07", value: "446.08125", link: "pmr.70cm-fm" },
+    { label: "CH-08", value: "446.09375", link: "pmr.70cm-fm" },
+    { label: "CH-09", value: "446.10625", link: "pmr.70cm-fm" },
+    { label: "CH-10", value: "446.11875", link: "pmr.70cm-fm" },
+    { label: "CH-11", value: "446.13125", link: "pmr.70cm-fm" },
+    { label: "CH-12", value: "446.14375", link: "pmr.70cm-fm" },
+    { label: "CH-13", value: "446.15625", link: "pmr.70cm-fm" },
+    { label: "CH-14", value: "446.16875", link: "pmr.70cm-fm" },
+    { label: "CH-15", value: "446.18125", link: "pmr.70cm-fm" },
+    { label: "CH-16", value: "446.19375", link: "pmr.70cm-fm" },
 
     { label: "CH-01 | 26.965 MHz", value: "26.965", link: "cb.11m-am-fm-lsb-usb" },
     { label: "CH-02 | 26.975 MHz", value: "26.975", link: "cb.11m-am-fm-lsb-usb" },
@@ -302,7 +302,7 @@ const randomOffsetWithin = (radius, from) => {
     return [latdO, longO];
 }
 
-function distance(latd1, long1, latd2, long2) {
+const distance = (latd1, long1, latd2, long2) => {
     var R = 6371; // Radius of the earth in km
     var dLat = deg2rad(latd2-latd1);  // deg2rad below
     var dLon = deg2rad(long2-long1); 
@@ -316,7 +316,7 @@ function distance(latd1, long1, latd2, long2) {
     return d;
 }
 
-function bearing(latd1, long1, latd2, long2) {
+const bearing = (latd1, long1, latd2, long2) => {
     latd1 = deg2rad(latd1);
     long1 = deg2rad(long1);
     latd2 = deg2rad(latd2);
@@ -344,6 +344,147 @@ const geoapifyURL = (latitude, longitude) => {
     return apiURL;
 }
 
+const getSessionDetails = (session, operator, center) => {
+
+    let detailedSession = null;
+
+    // let detailedBand = null;
+    // let detailedFreq = null;
+    // let detailedTone = null;
+
+    let ghostCheckOut = new Date(session.checkOut);
+    ghostCheckOut.setMinutes(ghostCheckOut.getMinutes() + ghostAirTime);
+
+    let status = 'active';
+    // if (session.checkOut < new Date() && ghostCheckOut > new Date()) {
+    if (session.checkOut < new Date()) {
+        status = 'inactive';
+    }
+
+    const dist = distance(
+      center[0],
+      center[1],
+      session.latitude,
+      session.longitude,
+    ).toFixed(2);
+
+    const bear = bearing(
+      center[0],
+      center[1],
+      session.latitude,
+      session.longitude,
+    ).toFixed(0);
+
+    let radios = [ ...session.radios || [] ];
+
+    // TODO:
+    // Should be removed once all radios are properly populated
+    if (!radios || radios.length === 0) {
+      radios = [{
+        radioId: `${session.sessionId}-R0`,
+        callsign: session.callsign,
+        band: session.band,
+        frequency: session.frequency,
+        tone: session.CTCSSFrequency,
+      }];
+    }
+
+    for(let r = 0; r < radios.length; r++) {
+
+      const radio = { ...radios[r] };
+
+      const detailedBand = bandDetails(radio.band);
+      const detailedFreq = frequencyDetails(radio.frequency);
+      const detailedTone = toneDetails(radio.tone);
+
+      // TODO:
+      // Should be removed once all radios are properly populated
+      // const radioId = radio.radioId || `${session.sessionId}-R${r}`;
+
+      radios[r] = {
+        ...radio,
+        radioId: radio.radioId || `${session.sessionId}-R${r}`,
+        band: detailedBand?.label,
+        bandPinIcon: detailedBand?.pinIcon,
+        bandFontColor: detailedBand?.fontColor,
+        frequency: detailedFreq?.label,
+        tone: detailedTone?.label,
+      }
+    }
+
+    detailedSession = {
+      ...session,
+      ghostCheckOut: ghostCheckOut,
+      operator: operator,
+      distance: dist,
+      bearing: bear,
+      radios: radios,
+      status: status,
+      locality: session.locality,
+      city: session.city,
+      country: session.country,
+    };
+
+    return detailedSession;
+}
+
+const tunnedRadios = (r1, r2) => {
+
+    if (r1?.band === r2?.band && r1?.frequency === r2?.frequency && r1?.tone === r2?.tone) {
+
+        return { listens: true, listened: true };
+
+    } else if (r1.band === r2.band && r1.frequency === r2.frequency && r1.tone && !r2.tone) {
+
+        return { listens: false, listened: true };
+
+    } else if (r1.band === r2.band && r1.frequency === r2.frequency && !r1.tone && r2.tone) {
+
+        return { listens: true, listened: false };
+    } 
+
+    return { listens: false, listened: false };
+}
+
+const sessionOverlap = (s1, s2) => {
+
+    // console.log(`S1: ${s1?.checkIn}`);
+    // console.log(`S1: ${s1?.checkOut}`);
+    // console.log(`S2: ${s2?.checkIn}`);
+    // console.log(`S2: ${s2?.checkOut}`);
+
+    // if (a_start <= b_start && b_start <= a_end) return true; // b starts in a
+    // if (a_start <= b_end   && b_end   <= a_end) return true; // b ends in a
+    // if (b_start <  a_start && a_end   <  b_end) return true; // a in b
+
+    if (s1?.checkIn <= s2?.checkIn  && s2?.checkIn  <= s1?.checkOut) return true;
+    if (s1?.checkIn <= s2?.checkOut && s2?.checkOut <= s1?.checkOut) return true;
+    if (s2?.checkIn <  s1?.checkIn  && s1?.checkOut <  s2?.checkOut) return true;
+
+    return false;
+}
+
+const findReportableRadioFromContact = (contact, session, radio, operator, center) => {
+
+    let radio2 = null;
+
+    const session2 = contact.sessions.find(elem => {
+        return sessionOverlap(elem, session);
+    });
+
+    if (session2) {
+
+        const detailedSession = getSessionDetails(session2, operator, center);
+
+        radio2 = detailedSession.radios.find(elem => {
+            const tunned = tunnedRadios(elem, radio);
+            return tunned.listens && tunned.listened;
+        });
+    }
+
+    return radio2;
+}
+
 const QRXLookupConfig = {
     appVersion,
     locales,
@@ -368,6 +509,10 @@ const QRXLookupConfig = {
     deg2rad,
     rad2deg,
     geoapifyURL,
+    getSessionDetails,
+    tunnedRadios,
+    sessionOverlap,
+    findReportableRadioFromContact,
 };
 
 export default QRXLookupConfig;

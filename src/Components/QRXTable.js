@@ -1,17 +1,104 @@
-// import { useTranslation } from "react-i18next";
-// import { useState, useEffect } from 'react';
+import { AppContext } from '../App';
+import QRXLookupConfig from '../QRXLookupConfig';
+import { useState, useContext, useEffect } from 'react';
+import { useTranslation } from "react-i18next";
 import Table from 'react-bootstrap/Table';
-// import Button from 'react-bootstrap/Button';
+import Button from 'react-bootstrap/Button';
+import Badge from 'react-bootstrap/Badge';
 
-// import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-// import { faUserGroup } from "@fortawesome/free-solid-svg-icons";
+function QRXTable({ contact, reports, activeContactSessions, initializeReport, changeRadarCenter, toggleShowQRKReport }) {
 
-function QRXTable({ contact, activeContactSessions, changeRadarCenter }) {
+    const { t } = useTranslation();
 
-    // const { t } = useTranslation();
+    const { language } = useContext(AppContext);
+
+    const [ report, setReport ] = useState({
+        selectedRadio1: null,
+        selectedRadio2: null,
+        qrkRadio: null,
+        qrkSignal: null,
+        qslRadio: null,
+        qslSignal: null,        
+    });
+
+    const myQRA = contact.operator;
+    const myLastSession = contact.sessions.slice(-1);
+    const myLastPosition = [myLastSession.latitude, myLastSession.longitude];
 
     const sortField = contact.sort.field.toLowerCase();
     const sortDescending = contact.sort.descending;
+
+    const handleSelectRadio = (session2, radio2) => {
+
+        console.log('handleSelectRadio...');
+        console.log('\n');
+
+        if (radio2.radioId !== report.selectedRadio2?.radioId) {
+
+            let myRadio = QRXLookupConfig.findReportableRadioFromContact(contact, session2, radio2, myQRA, myLastPosition);
+            let reported = null;
+
+            if (myRadio) {
+
+                reported = reports.find(elem => {
+                    return (elem.radio1Id === myRadio.radioId && elem.radio2Id === radio2.radioId) ||
+                           (elem.radio2Id === myRadio.radioId && elem.radio1Id === radio2.radioId);
+                });
+            }
+
+            setReport({
+                ...report,
+                id: reported?.id,
+                selectedRadio1: myRadio,
+                selectedRadio2: radio2,
+                qrkRadio: reported?.qrkRadio,
+                qrkSignal: reported?.qrkSignal,
+                qslRadio: reported?.qslRadio,
+                qslSignal: reported?.qslSignal,
+            });
+
+            changeRadarCenter([
+                session2.latitude, session2.longitude
+            ]);
+
+        } else {
+            handleResetRadioSelection();
+        }
+    }
+
+    const handleResetRadioSelection = () => {
+
+        setReport({
+            selectedRadio1: null, 
+            selectedRadio2: null,
+            qrkRadio: null,
+            qrkSignal: null,
+            qslRadio: null,
+            qslSignal: null,            
+        });
+
+        changeRadarCenter(null);
+    }
+
+    const handleInitializeReport = () => {
+
+        initializeReport({
+
+            id: report?.id,
+            selectedRadio1: { ...report.selectedRadio1 },
+            selectedRadio2: { ...report.selectedRadio2 },
+            qrkRadio: report?.qrkRadio,
+            qrkSignal: report?.qrkSignal,
+            qslRadio: report?.qslRadio,
+            qslSignal: report?.qslSignal,
+        });
+
+        toggleShowQRKReport();
+    }
+
+    useEffect(() => {
+    // eslint-disable-next-line
+    }, [report.selectedRadio2]);
 
     switch (sortField) {
 
@@ -42,8 +129,8 @@ function QRXTable({ contact, activeContactSessions, changeRadarCenter }) {
     activeContactSessions.forEach(session => {
 
         const { 
-            sessionId, status, operator,
-            latitude, longitude, distance, bearing, countryCode, country, city, locality,
+            checkIn, checkOut, status, operator,
+            distance, bearing, countryCode, country, city, locality,
             radios
         } = { ...session };
 
@@ -52,26 +139,95 @@ function QRXTable({ contact, activeContactSessions, changeRadarCenter }) {
             ghostSessionStyle = {color: '#808080', fontStyle: 'normal'};
         }
 
+        const airTimeElapsedMinutes = Math.floor((checkOut - checkIn) / 60000);
+
+        const localeCheckIn = checkIn.toLocaleString(QRXLookupConfig.locales[language]);
+        const localeCheckOut = checkOut.toLocaleString(QRXLookupConfig.locales[language]);
+
         let k = 0;
-        radios.forEach((r) => {            
-            if (!contact.callsigns.includes(r.callsign)) {
-                let [ channel ] = r.frequency.replace(/\s/g, "").split("|");
+        radios.forEach((radio) => {
+
+            if (!contact.callsigns.includes(radio.callsign)) {
+
+                let pendingQRK = false;
+                let pendingQSL = false;
+                let waitingQSL = false;
+                let completedQSO = false;
+    
+                const myRadio = QRXLookupConfig.findReportableRadioFromContact(contact, session, radio, myQRA, myLastPosition);
+    
+                if (myRadio) {
+
+                    const reported = reports.find(elem => {
+                        return (elem.radio1Id === radio.radioId && elem.radio2Id === myRadio.radioId) ||
+                               (elem.radio2Id === radio.radioId && elem.radio1Id === myRadio.radioId);
+                    });
+    
+                    if (!reported) {
+                        pendingQRK = true;
+                    }
+    
+                    if (reported && reported.radio2Id === myRadio.radioId) {
+                        pendingQSL = reported?.qrkRadio && reported?.qrkSignal &&
+                                     !reported?.qslRadio && !reported?.qslSignal;
+                    }
+
+                    if (reported && reported.radio1Id === myRadio.radioId) {
+                        waitingQSL = reported?.qrkRadio && reported?.qrkSignal &&
+                                     !reported?.qslRadio && !reported?.qslSignal;
+                    }
+    
+                    if (reported) {
+                        completedQSO = reported?.qrkRadio && reported?.qrkSignal &&
+                                       reported?.qslRadio && reported?.qslSignal;
+                    }
+                }
+
+                const actionableRadio = report?.selectedRadio2?.radioId === radio.radioId && 
+                                        (pendingQRK || pendingQSL);
+
+                const [ channel ] = radio.frequency.replace(/\s/g, "").split("|");
+
                 radiosMarkups.push(
-                    <tr key={`${sessionId}-${k}`} onClick={() => changeRadarCenter([latitude, longitude])}>
-                        <td>                            
+                    <tr key={radio.radioId} onClick={() => handleSelectRadio(session, radio)}>
+                        <td>
                             <span style={{ fontSize: '80%' }}>
-                                {`${r.band} | ${channel}`} {r.tone? ` | ${r.tone} `: ''}
+
+                                {pendingQRK? <><Badge bg="primary">QRK?</Badge>&nbsp;</>:null}
+                                {pendingQSL? <><Badge bg="primary">QSL?</Badge>&nbsp;</>:null}
+                                {completedQSO? <><Badge bg="primary">QSO</Badge>&nbsp;</>:null}
+
+                                {`${radio.band} | ${channel}`} {radio.tone? ` | ${radio.tone} `: ''}
                             </span>
                             <span style={{ ...ghostSessionStyle, fontSize: '90%' }}>                                    
-                                <b>{r.callsign} {operator? `(${operator})`: null}</b>
+                                <b>{radio.callsign} {operator? `(${operator})`: null}</b>
                             </span>
                             <br />
-                            <span style={{ fontSize: '80%' }}>
+                            <span style={{ fontFamily: 'monospace', fontSize: '80%' }}>
                                 {`${distance}km / ${bearing}° `}
                             </span>
-                            <span style={{ fontSize: '80%' }}>
+                            <span style={{ fontSize: '85%', fontStyle:'italic' }}>
                                 {`${locality}, ${city}, ${countryCode || country}`}
                             </span>
+                            {report.selectedRadio2?.radioId === radio.radioId? <>
+                                <br />
+                                <span style={{ fontFamily: 'monospace', fontSize: '80%' }}>
+                                    {`${localeCheckIn}`}<br />
+                                    {`${localeCheckOut} (${airTimeElapsedMinutes} ${t('minute')}s)`}
+                                </span>
+                                <hr/>
+                                {actionableRadio? (
+                                    <Button type="button" style={{ float: 'right', marginLeft: '.5rem' }}
+                                        variant='primary'
+                                        onClick={() => handleInitializeReport()}>
+                                        {t('report')}...
+                                    </Button>
+                                ):(
+                                    <i>
+                                        {completedQSO || waitingQSL? t('qrkTable.alreadyReported'): t('qrxTable.notReportable')}!
+                                    </i>
+                                )}
+                            </>:null}
                         </td>
                     </tr>
                 );

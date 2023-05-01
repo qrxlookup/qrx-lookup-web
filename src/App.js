@@ -11,6 +11,7 @@ import ContactForm from './Components/ContactForm';
 import ContactSessionForm from './Components/ContactSessionForm';
 import QRXRadar from './Components/QRXRadar';
 import QRXTable from './Components/QRXTable';
+import QRKReport from './Components/QRKReport';
 import QRXAirTime from './Components/QRXAirTime';
 import FirebaseFirestoreService from './FirebaseFirestoreService';
 import Button from 'react-bootstrap/Button';
@@ -18,7 +19,7 @@ import Form from 'react-bootstrap/Form';
 import Toast from 'react-bootstrap/Toast';
 import ToastContainer from 'react-bootstrap/ToastContainer';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowRightFromBracket, faUserGroup, faTowerBroadcast, faGear } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRightFromBracket, faTowerBroadcast, faGear, faFlag } from "@fortawesome/free-solid-svg-icons";
 
 export const AppContext = createContext();
 
@@ -28,6 +29,7 @@ export const ContactInitialState = {
   perimeter: '',
   callsigns: [],
   sessions: [],
+  reports: [],
 };
 
 export const ContactSessionInitialState = {
@@ -37,9 +39,6 @@ export const ContactSessionInitialState = {
   frequency: 0.0,
   CTCSSFrequency: 0.0,
   radios: [],
-  // radios: [
-  //   { callsign: '', band: '', frequency: '', tone: '' }
-  // ],
   perimeter: '',
   latitude: 0.0,
   longitude: 0.0,
@@ -70,9 +69,17 @@ const dataToContact = (id, data) => {
   }
 
   return {
+    id: id,
     ...data, 
     sort: { ...sort },
     sessions: [ ...sessions ],
+  };
+}
+
+const dataToReport = (id, data) => {
+
+  return {
+    ...data, 
   };
 }
 
@@ -86,8 +93,20 @@ function App() {
 
   const [ contacts, setContacts ] = useState([]);
   const [ changedContacts, setChangedContacts ] = useState([]);
+  const [ reports, setReports ] = useState([]);
+  const [ changedReports, setChangedReports ] = useState([]);
   const [ radarCenter, setRadarCenter ] = useState(null);
-  
+
+  const [ report, setReport ] = useState({
+    id: null,
+    selectedRadio1: null,
+    selectedRadio2: null,
+    qrkRadio: null,
+    qrkSignal: null,
+    qslRadio: null,
+    qslSignal: null,
+});
+
   const [ popUp, setPopUp ] = useState({
     tittle: '',
     status: '',
@@ -95,6 +114,7 @@ function App() {
     show: false,
     showContactDetails: false,
     showSessionDetails: false,
+    showQRKReport: false,
   });
 
   const changeLanguageHandler = (e) => {
@@ -104,109 +124,66 @@ function App() {
     localStorage.setItem("language", lang);
   }
 
-  const handleToggleShowContactDetails = () => {
+  const toggleShowContactDetails = () => {
 
     setPopUp({
       ...popUp,
       showContactDetails: !popUp.showContactDetails,
       showSessionDetails: !popUp.showContactDetails? false: popUp.showSessionDetails,
+      showQRKReport: !popUp.showContactDetails? false: popUp.showQRKReport,
     });
   }    
 
-  const handleToggleShowSessionDetails = () => {
+  const toggleShowSessionDetails = () => {
 
     setPopUp({
       ...popUp,
       showSessionDetails: !popUp.showSessionDetails,
       showContactDetails: !popUp.showSessionDetails? false: popUp.showContactDetails,
+      showQRKReport: !popUp.showSessionDetails? false: popUp.showQRKReport,
     });
   }
 
-  const getSessionDetails = (session, operator, center) => {
+  const toggleShowQRKReport = () => {
 
-    let detailedSession = null;
-
-    let bandDetails = null;
-    let freqDetails = null;
-    let toneDetails = null;
-
-    let ghostCheckOut = new Date(session.checkOut);
-    ghostCheckOut.setMinutes(
-        ghostCheckOut.getMinutes() + QRXLookupConfig.ghostAirTime
-    );
-
-    let status = 'active';
-    if (session.checkOut < new Date() && ghostCheckOut > new Date()) {
-        status = 'inactive';
+    if (popUp.showQRKReport) {
+      resetReport();
     }
 
-    const dist = QRXLookupConfig.distance(
-      center[0],
-      center[1],
-      session.latitude,
-      session.longitude,
-    ).toFixed(2);
-
-    const bear = QRXLookupConfig.bearing(
-      center[0],
-      center[1],
-      session.latitude,
-      session.longitude,
-    ).toFixed(0);
-
-    let radios = [ ...session.radios || [] ];
-    if (!radios || radios.length === 0) {
-      radios = [{
-        callsign: session.callsign,
-        band: session.band,
-        frequency: session.frequency,
-        tone: session.CTCSSFrequency,
-      }];
-    }
-
-    for(let r = 0; r < radios.length; r++) {
-
-      const radio = { ...radios[r] };
-
-      bandDetails = QRXLookupConfig.bandDetails(radio.band);
-      freqDetails = QRXLookupConfig.frequencyDetails(radio.frequency);
-      toneDetails = QRXLookupConfig.toneDetails(radio.tone);
-
-      radios[r] = {
-        ...radio,
-        band: bandDetails?.label,
-        bandPinIcon: bandDetails?.pinIcon,
-        bandFontColor: bandDetails?.fontColor,
-        frequency: freqDetails?.label,
-        tone: toneDetails?.label,
-      }
-    };
-
-    bandDetails = QRXLookupConfig.bandDetails(session.band);
-    freqDetails = QRXLookupConfig.frequencyDetails(session.frequency);
-    toneDetails = QRXLookupConfig.toneDetails(session.CTCSSFrequency);
-
-    detailedSession = {
-      ...session,
-      ghostCheckOut: ghostCheckOut,
-      operator: operator,
-      distance: dist,
-      bearing: bear,
-      band: bandDetails?.label? bandDetails.label: '',
-      bandIconFile: bandDetails?.pinIcon || '',
-      frequency: freqDetails?.label || '',
-      tone: toneDetails?.label || '',
-      radios: radios,
-      status: status,
-      locality: session.locality,
-      city: session.city,
-      country: session.country,
-    };
-
-    return detailedSession;
+    setPopUp({
+      ...popUp,
+      showQRKReport: !popUp.showQRKReport,
+      showContactDetails: !popUp.showQRKReport? false: popUp.showContactDetails,
+      showSessionDetails: !popUp.showQRKReport? false: popUp.showSessionDetails,
+    });
   }
 
-  const handleLoadActiveAndRecentSessions = (centerSession, excludedSessionIds = []) => {
+  const loadAllSessions = (centerSession, excludedContactIds = []) => {
+
+    const center = [
+      centerSession?.latitude? centerSession?.latitude: 0, 
+      centerSession?.longitude? centerSession?.longitude: 0,
+    ];  
+
+    let sessions = [];
+    
+    for (let c of contacts || []) {
+  
+      for (const s in c.sessions) {
+
+        const session = c.sessions[s];
+
+        if (!excludedContactIds.includes(session.sessionId)) {
+          const detailedSession = QRXLookupConfig.getSessionDetails(session, c.operator, center);
+          sessions.push(detailedSession);
+        }
+      }
+    }
+    
+    return sessions;
+  }
+
+  const loadRecentlyActiveSessions = (centerSession, excludedSessionIds = []) => {
 
     const center = [
       centerSession?.latitude? centerSession?.latitude: 0, 
@@ -223,7 +200,7 @@ function App() {
 
       if (lastSession && !excludedSessionIds.includes(lastSession.sessionId)) {
 
-        const detailedSession = getSessionDetails(lastSession, c.operator, center);
+        const detailedSession = QRXLookupConfig.getSessionDetails(lastSession, c.operator, center);
 
         let ghostCheckOut = new Date(lastSession.checkOut);
         ghostCheckOut.setMinutes(
@@ -255,17 +232,10 @@ function App() {
 
   const handleChangeRadarCenter = (center) => {
 
-    if (center && radarCenter 
-    && center[0] === radarCenter[0] 
-    && center[1] === radarCenter[1]) {
-
-      // console.log(`Reset center...`);
-      setRadarCenter(null);
-
-    } else if (center && center.length === 2) {
-      
-      // console.log(`New center: ${center}`);
-      setRadarCenter(center);      
+    if (center) {
+      setRadarCenter(center);
+    } else {      
+      setRadarCenter(null);      
     }
   }
 
@@ -273,6 +243,8 @@ function App() {
 
     console.log(`%c> Writing 1 record to Firestore.`, 'color: red');
     console.log('\n');
+
+    console.log(updatedContact);
 
     try {
         await FirebaseFirestoreService.updateDocument('contacts', updatedContact);
@@ -283,6 +255,7 @@ function App() {
 
     } catch (error) {
         alert(error.message);
+        throw error;
     }
 
     setPopUp({
@@ -295,9 +268,31 @@ function App() {
     });
   }
 
-  const handleDocChange = (docChanges) => {
+  const handleUpdateReport = async(updatedReport) => {
 
-    console.log(`%c> Reading ${docChanges.length} records from Firestore.`, 'color: red');
+    console.log(`%c> Writing 1 record to Firestore.`, 'color: red');
+    console.log('\n');
+
+    try {
+        await FirebaseFirestoreService.updateDocument('reports', updatedReport);
+
+    } catch (error) {
+        alert(error.message);
+    }
+
+    // setPopUp({
+    //   tittle: '',
+    //   status: '',
+    //   message: '',
+    //   show: false,
+    //   showContactDetails: false,
+    //   showSessionDetails: false,
+    // });
+  }
+
+  const handleContactChanged = (docChanges) => {
+
+    console.log(`%c> Reading ${docChanges.length} records from Contacts.`, 'color: red');
     console.log('\n');
 
     let changes = [];
@@ -318,6 +313,26 @@ function App() {
 
     setChangedContacts([ ...changes ]);
   }
+
+  const handleReportChanged = (docChanges) => {
+
+    console.log(`%c> Reading ${docChanges.length} records from Reports.`, 'color: red');
+    console.log('\n');
+
+    let changes = [];
+
+    docChanges.forEach((change) => {
+
+      const report = dataToReport(change.doc.id, { ...change.doc.data() });
+
+      changes = [ 
+        ...changes, 
+        { report: { ...report }, type: change.type } 
+      ];
+    });
+
+    setChangedReports([ ...changes ]);
+  }  
 
   const handleLogout = () => {
 
@@ -352,6 +367,19 @@ function App() {
 
     setMyContact(null);
     setUser(null);
+  }
+
+  const resetReport = () => {
+
+    setReport({
+        id: null,
+        selectedRadio1: null, 
+        selectedRadio2: null,
+        qrkRadio: null,
+        qrkSignal: null,
+        qslRadio: null,
+        qslSignal: null,                    
+    });
   }
 
   useLayoutEffect(() => {
@@ -440,17 +468,22 @@ function App() {
 
   useEffect(() => {
 
-    let unsubscribe = () => {};
+    let unsubscribe1 = () => {};
+    let unsubscribe2 = () => {};
 
     if (user) {
 
-      unsubscribe = FirebaseFirestoreService.subscribeToDocChanges('contacts', handleDocChange);
+      unsubscribe1 = FirebaseFirestoreService.subscribeToDocChanges('contacts', handleContactChanged);
+      unsubscribe2 = FirebaseFirestoreService.subscribeToDocChanges('reports', handleReportChanged);
 
       if (!myContact)
         setMyContact({ ...ContactInitialState, email: user.email });
     }
       
-    return () => unsubscribe();
+    return () => { 
+      unsubscribe1();
+      unsubscribe2();
+    }
 
   // eslint-disable-next-line
   }, [user]);
@@ -491,12 +524,48 @@ function App() {
   // eslint-disable-next-line
   }, [changedContacts]);
   
+  useEffect(() => {
+
+    console.log(`+ About to process ${changedReports.length} changed records:`);
+
+    let changes = [ ...reports ];
+
+    for (const change of changedReports) {
+
+      const reportId = change.report.id;
+
+      if (change.type === "added" && !changes.find(elem => elem.id === reportId)) {
+        console.log("  New report:", change.report);
+        changes = [ ...changes,  { ...change.report } ];
+      }
+  
+      if (change.type === "modified" && changes.findIndex(elem => elem.id === reportId)) {
+        console.log("  Modified report: ", change.report);
+        const idx = reports.findIndex(elem => elem.id === reportId);
+        changes[idx] = { ...change.report };
+      }
+  
+      if (change.type === "removed") {
+        console.log("  Removed report: ", change.report);
+        changes = [
+          ...changes.filter(elem => elem.id !== reportId)
+        ];        
+      }
+    }
+
+    console.log('\n');
+
+    setReports([ ...changes ]);
+
+  // eslint-disable-next-line
+  }, [changedReports]);
+
   let mySessionsLength = myContact?.sessions?.length? myContact.sessions.length: 0;
 
   let myLastSession = mySessionsLength > 0? myContact.sessions[mySessionsLength - 1]: null;
 
-  const activeContactSessions = myLastSession? 
-    [ ...handleLoadActiveAndRecentSessions(myLastSession) ]:
+  const recentActiveSessions = myLastSession? 
+    [ ...loadRecentlyActiveSessions(myLastSession) ]:
     [];
 
   // console.log(`Lang: ${language}`);
@@ -538,22 +607,25 @@ function App() {
         <Row className='header'>
           <Col className='header-center' md>
             {user? (<>
-              <p style={{fontFamily: 'Digital7Mono', fontSize: '300%', color: '#ffff00', margin: 0}}>
-                <Button variant='primary' type="button" onClick={() => {}} style={{ marginRight: '.5rem' }}>
-                  <FontAwesomeIcon icon={faUserGroup} size="1x"/>
+              <span style={{fontFamily: 'Digital7Mono', fontSize: '250%', color: '#ffff00', margin: 0}}>
+                <Button variant={!popUp.showQRKReport? 'primary': 'secondary'} type="button" onClick={toggleShowQRKReport} style={{ marginRight: '.5rem' }}>
+                  <FontAwesomeIcon icon={faFlag} size="1x"/>
                 </Button>
-                <Button variant={!popUp.showSessionDetails? 'primary': 'secondary'} type="button" onClick={handleToggleShowSessionDetails} style={{ marginRight: '.5rem' }}>
+
+                <Button variant={!popUp.showSessionDetails? 'primary': 'secondary'} type="button" onClick={toggleShowSessionDetails} style={{ marginRight: '.5rem' }}>
                   <FontAwesomeIcon icon={faTowerBroadcast} size="1x"/>
                 </Button>
-                {myLastSession?.checkOut > new Date()? 
-                  <QRXAirTime countDownDate={myLastSession.checkOut} />: '00:00:00'}
-                <Button variant={!popUp.showContactDetails? 'primary': 'secondary'} type="button" onClick={handleToggleShowContactDetails} style={{ marginLeft: '.5rem' }}>
+
+                <QRXAirTime countDownDate={myLastSession?.checkOut} />
+
+                <Button variant={!popUp.showContactDetails? 'primary': 'secondary'} type="button" onClick={toggleShowContactDetails} style={{ marginLeft: '.5rem' }}>
                   <FontAwesomeIcon icon={faGear} size="1x"/>
                 </Button>
+
                 <Button variant="danger" type="button" onClick={handleLogout} style={{ marginLeft: '.5rem' }}>
                   <FontAwesomeIcon icon={faArrowRightFromBracket} size="1x"/>
                 </Button>
-              </p>
+              </span>
             </>):(<>
               <Form.Group className="mb-2" controlId="language">
                 <Form.Check inline label='English' value='en' onChange={(e) => changeLanguageHandler(e)} 
@@ -568,29 +640,54 @@ function App() {
         {user? (
           <Row className='main'>
             <Col>
-              {popUp.showContactDetails && !popUp.showSessionDetails && myContact?
+              {popUp.showContactDetails && !popUp.showSessionDetails && !popUp.showQRKReport && myContact?
                 <ContactForm
                   contact={myContact} 
                   handleUpdateContact={handleUpdateContact}
                   validCallsign={handleIsValidCallsign} />
               :null}
 
-              {popUp.showSessionDetails && !popUp.showContactDetails && myContact?
+              {popUp.showSessionDetails && !popUp.showContactDetails && !popUp.showQRKReport && myContact?
                 <ContactSessionForm
                   contact={myContact} 
                   handleUpdateContact={handleUpdateContact}
                   validCallsign={handleIsValidCallsign} />
               :null}
 
-              {!popUp.showSessionDetails && !popUp.showContactDetails & mySessionsLength > 0? (<>
+              {popUp.showQRKReport && !popUp.showSessionDetails && !popUp.showContactDetails && myContact?
+                <QRKReport
+                  contact={myContact}
+                  reports={reports}
+                  reportId={report.id}
+                  reportRadio1={report.selectedRadio1}
+                  reportRadio2={report.selectedRadio2}
+                  reportQRKRadio={report.qrkRadio}
+                  reportQRKSignal={report.qrkSignal}
+                  reportQSLRadio={report.qslRadio}
+                  reportQSLSignal={report.qslSignal}
+
+                  allSessions={!report.selectedRadio2? 
+                    loadAllSessions(myLastSession, myContact.sessions.map((s) => {
+                      return s.sessionId;
+                    }))
+                    :recentActiveSessions
+                  }
+                  toggleShowQRKReport={toggleShowQRKReport}
+                  handleUpdateReport={handleUpdateReport} />
+              :null}
+
+              {!popUp.showSessionDetails && !popUp.showContactDetails && !popUp.showQRKReport && mySessionsLength > 0? (<>
                   <QRXRadar
                     contact={myContact}
-                    activeContactSessions={activeContactSessions}
+                    activeContactSessions={recentActiveSessions}
                     center={radarCenter} /> 
                   <QRXTable
                     contact={myContact}
-                    activeContactSessions={activeContactSessions}
-                    changeRadarCenter={handleChangeRadarCenter} />
+                    reports={reports}
+                    activeContactSessions={recentActiveSessions}
+                    initializeReport={setReport}
+                    changeRadarCenter={handleChangeRadarCenter}
+                    toggleShowQRKReport={toggleShowQRKReport} />
               </>) :null}
             </Col>
           </Row>

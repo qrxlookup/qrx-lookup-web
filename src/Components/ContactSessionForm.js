@@ -31,7 +31,7 @@ const reverseGeocoding = async (latitude, longitude) => {
 
     const data = await response.json();
 
-    let revgeo = data.features[0].properties;
+    let revgeo = data.features[0]?.properties;
 
     console.log(revgeo);
     console.log('\n');
@@ -66,27 +66,23 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
         { ...sessions[sessionsLength - 1] }:
         { ...ContactSessionInitialState };
 
-    const callsigns = contact? [ ...contact.callsigns.sort() ]: [];
+    // const callsigns = contact? [ ...contact?.callsigns?.sort() ]: [];
+    const callsigns = [ ...contact?.callsigns?.sort() || [] ];
 
     const bands = QRXLookupConfig.bands;
     const bandFrequencies = QRXLookupConfig.bandFrequencies;
     const CTCSSFrequencies = QRXLookupConfig.CTCSSFrequencies;
 
-    let radios = lastSession.radios;
-    if (!radios) {
-        radios = [{
-            callsign: lastSession.callsign || contact.callsigns[0],
-            band: lastSession.band,
-            frequency: lastSession.frequency,
-            tone: lastSession.CTCSSFrequency,
-        }];
-    }
+    let radios = lastSession.radios || [];
 
-    if (radios && radios.length === 0) {
-        radios = [
-            ...radios,
-            { callsign: callsigns[0], band: '', frequency: '', tone: '' }
-        ];
+    if (!radios || radios.length === 0) {
+        radios = [{ 
+            radioId: crypto.randomUUID(), 
+            callsign: callsigns[0] || '', 
+            band: '', 
+            frequency: '', 
+            tone: '' 
+        }];
     }
 
     const [form, setForm] = useState({
@@ -94,15 +90,17 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
         airTime: lastSession.checkOut < new Date()? '30': null,
         radios: radios,
         activeRadio: 0,
-        call: radios[0]?.callsign || '',
-        band: radios[0]?.band || '',
-        freq: radios[0]?.frequency || '',
-        tone: radios[0]?.tone || '',
+        call: radios[0]?.callsign,
+        band: radios[0]?.band,
+        freq: radios[0]?.frequency,
+        tone: radios[0]?.tone,
         latd: lastSession.latitude,
         long: lastSession.longitude,
-        freqOpt: [ ...filterFreqOpt(lastSession.band) ],
+        freqOpt: [ ...filterFreqOpt(radios[0]?.band) ],
         getPos: false,
     });
+
+    const [ formErrors, setFormErrors ] = useState({});
 
     const setFormField = (field, value) => {
 
@@ -126,8 +124,8 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
 
             setForm({
                 ...form,
-                [field]: value
-            });    
+                [field]: value,
+            });
         }
 
         if ( !!formErrors[field] ) setFormErrors({
@@ -135,8 +133,6 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
             [field]: null
         });
     }
-
-    const [ formErrors, setFormErrors ] = useState({});
 
     const findFormErrors = () => {
 
@@ -187,29 +183,13 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
         return filtered;
     }
 
-    // function filterBusyFreqOpt(freqOpt, keep) {
-    //     let filteredFreqOpt = Object.assign(freqOpt);
-    //     form.radios.forEach(radio => {
-    //         filteredFreqOpt = filteredFreqOpt.filter(
-    //             freq => freq.value !== radio.frequency || freq.value === keep
-    //         );
-    //     });
-    //     return filteredFreqOpt;
-    // }
-
-    // function filterContactCallsigns(keep) {
-    //     let filteredCallsigns = Object.assign(contactCallsigns);
-    //     form.radios.forEach(elem => {
-    //         filteredCallsigns = filteredCallsigns.filter(call => call !== elem.callsign || call === keep);
-    //     });
-    //     return filteredCallsigns;
-    // }
-
     const handleGetCurrentLocation = () => {
+
         setForm({
             ...form,
             getPos: true,
         });
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(handleUpdatePosition, handleCurrentLocationError);
         }
@@ -246,7 +226,7 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 //     { callsign: filterContactCallsigns(null)[0], band: '', frequency: '', tone: ''}
                 // ]}),
                 radios: update(form.radios, {$push: [
-                    { callsign: callsigns[0], band: '', frequency: '', tone: ''}
+                    { radioId: crypto.randomUUID(), callsign: callsigns[0], band: '', frequency: '', tone: ''}
                 ]}),                
                 activeRadio: form.radios.length,
             });
@@ -265,6 +245,7 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
     }
 
     const handleUpdatePosition = (position) => {
+
         setForm({
             ...form,
             latd: Math.fround(position.coords.latitude),
@@ -324,38 +305,6 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
 
         return adjusted;
     }
-
-    const areTheseRadiosTunned = (r1, r2) => {
-
-        if (r1.band === r2.band && r1.frequency === r2.frequency && r1.tone === r2.tone) {
-
-            return { listens: true, listened: true };
-
-        } else if (r1.band === r2.band && r1.frequency === r2.frequency && r1.tone && !r2.tone) {
-
-            return { listens: false, listened: true };
-
-        } else if (r1.band === r2.band && r1.frequency === r2.frequency && !r1.tone && r2.tone) {
-
-            return { listens: true, listened: false };
-        } 
-
-        return { listens: false, listened: false };
-    }
-
-    // eslint-disable-next-line
-    const sessionPeriodOverlap = (s1, s2) => {
-
-        // if (a_start <= b_start && b_start <= a_end) return true; // b starts in a
-        // if (a_start <= b_end   && b_end   <= a_end) return true; // b ends in a
-        // if (b_start <  a_start && a_end   <  b_end) return true; // a in b
-
-        if (s1.checkIn <= s2.checkIn  && s2.checkIn  <= s1.checkOut) return true;
-        if (s1.checkIn <= s2.checkOut && s2.checkOut <= s1.checkOut) return true;
-        if (s2.checkIn <  s1.checkIn  && s1.checkOut <  s2.checkOut) return true;
-
-        return false;
-    }
     
     const changedRadioSession = (s1, s2) => {
 
@@ -372,7 +321,7 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 
                 const r2 = s2.radios[rj];
 
-                const tunned = areTheseRadiosTunned(r1, r2);
+                const tunned = QRXLookupConfig.tunnedRadios(r1, r2);
 
                 oneEqual = 
                     (r1.callsign === r2.callsign && tunned.listens && tunned.listened) | oneEqual;
@@ -395,8 +344,6 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
 
         } else {
 
-            const lastSessionIdx = sessionsLength > 0? sessionsLength - 1: 0;
-
             const latd = Math.fround(form.latd);
             const long = Math.fround(form.long);
 
@@ -406,9 +353,9 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 band: form.band,
                 frequency: form.freq,
                 CTCSSFrequency: form.tone,
-                radios: form.radios,
-                latitude: latd,
-                longitude: long,
+                radios: [ ...form.radios ],
+                latitude: form.latd,
+                longitude: form.long,
                 latitudeO: 0.0,
                 longitudeO: 0.0,
                 maidenhead: QRXMaidenhead.gridForLatLon(latd, long),
@@ -449,14 +396,8 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
             console.log(`+ Changed radio session: ${changedRadioSession(lastSession, updatedSession)}`);
             console.log('\n');
 
-            // if (
-            //     sessionsLength < 1
-            //     || (new Date()).getTime() > lastSession.checkOut.getTime()
-            //     || updatedSession.callsign !== lastSession.callsign
-            //     || updatedSession.band !== lastSession.band
-            //     || updatedSession.frequency !== lastSession.frequency
-            //     || updatedSession.CTCSSFrequency !== lastSession.CTCSSFrequency
-            // ) {
+            const lastSessionIdx = sessionsLength > 0? sessionsLength - 1: 0;
+
             if (new Date() > lastSession.checkOut || changedRadioSession(lastSession, updatedSession)) {
 
                 if (sessionsLength > 0 && sessions[lastSessionIdx].checkOut > new Date()) {
@@ -532,23 +473,6 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
         });
     };
 
-    useEffect(() => {
-
-        const r = form.activeRadio;
-        const freqOpt = form.radios[r]? filterFreqOpt(form.radios[r].band): [];
-
-        setForm({
-            ...form,
-            call: form.radios[r]?.callsign || callsigns[0],
-            band: form.radios[r]?.band,
-            freq: form.radios[r]?.frequency,
-            tone: form.radios[r]?.tone,
-            freqOpt: [ ...freqOpt ],
-        });
-
-    // eslint-disable-next-line
-    }, [form.activeRadio]);
-
     const activeRadio = form.activeRadio;
 
     let remainingAirTime = 0;
@@ -557,20 +481,31 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
     
     let pages = [];
     for (let r = 0; r < form.radios.length; r++) {
-        // const radio = form.radios[r];
-        // const bandDetails = QRXLookupConfig.bandDetails(radio.band);
-        // const freqDetails = QRXLookupConfig.frequencyDetails(radio.frequency);
         pages.push(
             <Pagination.Item key={r} active={r === form.activeRadio} 
                 onClick={() => handleChangeRadio(r)}>
                 {`R${r + 1}`}
-                {/* {r === form.activeRadio || !bandDetails?
-                    `R${r + 1}`:
-                    `R${r + 1} ${bandDetails.label}`
-                } */}
             </Pagination.Item>,
         );
     }
+
+    useEffect(() => {
+
+        const band = form.radios[activeRadio]?.band;
+
+        const freqOpt = filterFreqOpt(band);
+
+        setForm({
+            ...form,
+            call: form.radios[activeRadio]?.callsign,
+            band: form.radios[activeRadio]?.band,
+            freq: form.radios[activeRadio]?.frequency,
+            tone: form.radios[activeRadio]?.tone,
+            freqOpt: [ ...freqOpt ],
+        });
+
+    // eslint-disable-next-line
+    }, [form.activeRadio]);
 
     return (
         <Form noValidate onSubmit={(e) => handleSaveSession(e)}>
@@ -607,6 +542,8 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 <Form.Control.Feedback type="invalid">{t(formErrors.call)}!</Form.Control.Feedback>
             </Form.Group>
 
+            <table style={{width: '100%'}}><tbody><tr><td>
+
             {/* BAND */}
             <Form.Group className="mb-2" controlId="band">
                 <Form.Label>
@@ -626,6 +563,8 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 <Form.Control.Feedback type="invalid">{t(formErrors.band)}!</Form.Control.Feedback>
             </Form.Group>
 
+            </td><td>
+
             {/* FREQUENCY */}
             <Form.Group className="mb-2" controlId="frequency">
                 <Form.Label>{t('contactForm.ChannelAndFrequency')}</Form.Label>
@@ -641,6 +580,8 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 </Form.Select>
                 <Form.Control.Feedback type="invalid">{t(formErrors.freq)}!</Form.Control.Feedback>
             </Form.Group>
+
+            </td></tr></tbody></table>
 
             {/* CTCSS-TONE */}
             {['pmr.70cm-fm', 'lpd.70cm-fm'].includes(form.band)? (

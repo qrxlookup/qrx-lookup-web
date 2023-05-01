@@ -16,7 +16,7 @@ function ContactForm({ contact, handleUpdateContact, validCallsign }) {
     const { t } = useTranslation();
 
     const sortFields = [
-        'CallSign', 'Operator','Distance', 'Bearing', 'Status', 'Locality', 'City', 'Country'
+        'Distance', 'CallSign', 'Operator', 'Bearing', 'Status', 'Locality', 'City', 'Country'
     ];
 
     const [form, setForm] = useState({
@@ -108,6 +108,7 @@ function ContactForm({ contact, handleUpdateContact, validCallsign }) {
 
             let updatedContact = {
                 ...contact,
+                id: contact.id || contact.email,
                 operator: form.oper,
                 callsigns: form.calls,
                 perimeter: form.perim? form.perim: '',

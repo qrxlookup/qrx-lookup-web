@@ -1,5 +1,5 @@
 import firebase from './FirebaseConfig';
-import { getFirestore, collection, query, onSnapshot, doc, addDoc, setDoc, getDoc, getDocs } from "firebase/firestore";
+import { getFirestore, collection, query, onSnapshot, serverTimestamp, doc, addDoc, setDoc, getDoc, getDocs } from "firebase/firestore";
 
 const db = getFirestore(firebase);
 
@@ -8,7 +8,13 @@ const createDocument = async (collectName, doc) => {
 };
 
 const updateDocument = async (collection, document) => {
-    await setDoc(doc(db, collection, document.email), document);
+    
+    const docRef = doc(db, collection, document.id);
+
+    await setDoc(docRef, { 
+        ...document, 
+        timestamp: serverTimestamp()
+    });
 };
 
 const readDocuments = async (collectName) => {

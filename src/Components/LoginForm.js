@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-// import { useState } from 'react';
+import { useState } from 'react';
 import FirebaseAuthService from '../FirebaseAuthService';
 
 import Form from 'react-bootstrap/Form';
@@ -10,7 +10,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGoogle, faFacebook, /* faTwitter, faApple */ } from "@fortawesome/free-brands-svg-icons";
 
 import '../App.css';
-// import { ContactContext, ContactInitialState } from '../App';
 
 function LoginForm() {
 
@@ -19,7 +18,9 @@ function LoginForm() {
     // const { contact, setContact } = useContext(ContactContext);
     // const [username, setUsername] = useState('');
     // const [password, setPassword] = useState('');
-    // const [registration, setRegistration] = useState(false);
+    const [linkAccounts, setLinkAccounts] = useState(false);
+
+    let firstLogin = true;
 
     // const contactSessionLength = contact?.sessions?.length? contact.sessions.length: 0;
     // let contactSession = contactSessionLength > 0? contact.sessions[contactSessionLength - 1]: null;
@@ -57,7 +58,8 @@ function LoginForm() {
 
     function handleLoginWithGoogle() {
         try {
-            FirebaseAuthService.loginWithGoogle();
+            FirebaseAuthService.loginWithGoogle(firstLogin && linkAccounts);
+            localStorage.setItem("firstLogin", Date());
         } catch (error) {
             alert(error.message);
         }
@@ -65,7 +67,8 @@ function LoginForm() {
 
     function handleLoginWithFacebook() {
         try {
-            FirebaseAuthService.loginWithFacebook();
+            FirebaseAuthService.loginWithFacebook(firstLogin && linkAccounts);
+            localStorage.setItem("firstLogin", Date());
         } catch (error) {
             alert(error.message);
         }
@@ -82,10 +85,14 @@ function LoginForm() {
     //     setContact(ContactInitialState);
     // }
 
+    if (localStorage.getItem("firstLogin")) {
+        firstLogin = false;
+    }
+
     return (<>
-            {/* <p><center>{t('Login')}</center></p> */}
-            <p>{t('Login')}</p>
-            <Form>
+        <center>
+            <h3>{t('Login')}</h3>
+            {/* <p>{t('Login')}</p> */}
             {/* <Form.Group className="mb-2" controlId="email">
                 <Form.Label>Email address</Form.Label>
                 <Form.Control value={username} onChange={(e) => setUsername(e.target.value)} type="email" placeholder="Enter email" />
@@ -100,25 +107,28 @@ function LoginForm() {
             <Form.Group className="mb-2" controlId="registration">
                 <Form.Check checked={registration} onChange={(e) => setRegistration(e.target.checked)} type="checkbox" label="Registration" />
             </Form.Group> */}
-            <div>
-                {/* <Button variant="secondary" type="button" onClick={doNothing}>Reset</Button> */}
-                {/* <Button variant="primary" type="button" onClick={handleLogin} style={{ marginLeft: '.5rem' }}>
-                    {registration? "Sign-up": "Sign-in"}
-                </Button> */}
-                <Button variant="primary" type="button" onClick={handleLoginWithGoogle} style={{ marginLeft: '.5rem' }}>
-                    <FontAwesomeIcon icon={faGoogle} size="1x" />
-                </Button>
-                <Button variant="primary" type="button" onClick={handleLoginWithFacebook} style={{ marginLeft: '.5rem' }}>
-                    <FontAwesomeIcon icon={faFacebook} size="1x" />
-                </Button>
-                {/* <Button variant="secondary" disabled type="button" onClick={handleLoginWithTwitter} style={{ marginLeft: '.5rem' }} >
-                    <FontAwesomeIcon icon={faTwitter} size="1x" />
-                </Button>
-                <Button variant="secondary" disabled type="button" onClick={handleLoginWithApple} style={{ marginLeft: '.5rem' }} >
-                    <FontAwesomeIcon icon={faApple} size="1x" />
-                </Button> */}
-            </div>
-        </Form>
+            {firstLogin?
+                <Form.Group className="mb-2" controlId="linkAccounts">
+                    <Form.Check checked={linkAccounts} onChange={(e) => setLinkAccounts(e.target.checked)} type="checkbox" label={t('linkAccounts')} />
+                </Form.Group>
+            :null}
+            {/* <Button variant="secondary" type="button" onClick={doNothing}>Reset</Button> */}
+            {/* <Button variant="primary" type="button" onClick={handleLogin} style={{ marginLeft: '.5rem' }}>
+                {registration? "Sign-up": "Sign-in"}
+            </Button> */}
+            <Button variant="primary" type="button" onClick={handleLoginWithGoogle} style={{ marginLeft: '.5rem' }}>
+                <FontAwesomeIcon icon={faGoogle} size="1x" />
+            </Button>
+            <Button variant="primary" type="button" onClick={handleLoginWithFacebook} style={{ marginLeft: '.5rem' }}>
+                <FontAwesomeIcon icon={faFacebook} size="1x" />
+            </Button>
+            {/* <Button variant="secondary" disabled type="button" onClick={handleLoginWithTwitter} style={{ marginLeft: '.5rem' }} >
+                <FontAwesomeIcon icon={faTwitter} size="1x" />
+            </Button>
+            <Button variant="secondary" disabled type="button" onClick={handleLoginWithApple} style={{ marginLeft: '.5rem' }} >
+                <FontAwesomeIcon icon={faApple} size="1x" />
+            </Button> */}
+        </center>
     </>);
 }
 

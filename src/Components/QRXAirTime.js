@@ -14,31 +14,37 @@ const DAY = HOUR * 24;
 
 const QRXAirTime = ({ countDownDate }) => {
 
-    // const { addEditContactFormHide, setAddEditContactFormHide } = useContext(ContactContext);
+    let hour = 0; 
+    let min = 0; 
+    let sec = 0;
+
+    if (!countDownDate)
+        countDownDate = new Date();
+
     const [time, setTime] = useState(countDownDate.getTime() - new Date().getTime());
 
     useEffect(() => {
 
         const interval = setInterval(() => { 
             setTime(countDownDate.getTime() - new Date().getTime());
-            // console.log('tic-tac...');
         }, 1000);
 
         return () => clearInterval(interval);
 
     }, [countDownDate]);
 
-    let countDown = '00:00:00';
-
     if (time > 0) {
-        countDown  = '';
-        //countDown += `${Math.floor(time / DAY)}`.padStart(2, "0") + " days | ";
-        countDown += `${Math.floor((time / HOUR) % 24)}`.padStart(2, "0") + ":";
-        countDown += `${Math.floor((time / MINUTE) % 60)}`.padStart(2, "0") + ":";
-        countDown += `${Math.floor((time / SECOND) % 60)}`.padStart(2, "0");
+        // countDown  = '';
+        // countDown += `${Math.floor(time / DAY)}`.padStart(2, "0") + " days | ";
+        // countDown += `${Math.floor((time / HOUR) % 24)}`.padStart(2, "0") + ":";
+        hour = Math.floor((time / HOUR) % 24);
+        // countDown += `${Math.floor((time / MINUTE) % 60)}`.padStart(2, "0") + ":";
+        min = Math.floor((time / MINUTE) % 60);
+        // countDown += `${Math.floor((time / SECOND) % 60)}`.padStart(2, "0");
+        sec = Math.floor((time / SECOND) % 60);
     }
 
-    return countDown;
+    return `${hour}`.padStart(2, "0") + ':' +`${min}`.padStart(2, "0") + ':' +`${sec}`.padStart(2, "0");
 }
 
 export default QRXAirTime;

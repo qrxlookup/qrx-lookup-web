@@ -28,7 +28,7 @@ const styles = {
     borderRadius: '0.3rem',
 };
 
-function QRXRadar({ contact, center = null, activeContactSessions }) {
+function QRXRadar({ contact, reports, center = null, activeContactSessions }) {
 
     const { t } = useTranslation();
 
@@ -37,8 +37,10 @@ function QRXRadar({ contact, center = null, activeContactSessions }) {
     const redMarker = '/img/vecteezy-map-pin-red.png';
     const multiColorMarker = '/img/vecteezy-map-pin-multicolor.png';
 
-    const url = QRXLookupConfig.OpenStreetMapTileLayer.stamen.url;
-    const attrib = QRXLookupConfig.OpenStreetMapTileLayer.stamen.attrib;
+    // const url = QRXLookupConfig.OpenStreetMapTileLayer.stamen.url;
+    // const attrib = QRXLookupConfig.OpenStreetMapTileLayer.stamen.attrib;
+    const url = QRXLookupConfig.OpenStreetMapTileLayer.default.url;
+    const attrib = QRXLookupConfig.OpenStreetMapTileLayer.default.attrib;
 
     const contactCallsigns = contact?.callsigns || [];
     const sessionsLength = contact?.sessions?.length? contact?.sessions?.length: 0;
