@@ -20,22 +20,25 @@ const OpenStreetMapTileLayer = {
 };
 
 // Remaining air time when some action is needed
-const criticalAirTime = 10;
+export const criticalAirTime = 10;
 
 // Extra minutes each air time increased
-const extraAirTime = 30;
+export const extraAirTime = 30;
 
 // Lesser minutes each air time is decreased
-const lessAirTime = -15;
+export const lessAirTime = -15;
 
 // Minutes an expired sessions will remain visible
-const ghostAirTime = 60 * 24;
+export const ghostAirTime = 60 * 24;
+
+// Minutes an expired sessions will remain reportable
+export const reportableTime = 60 * 72;
 
 // Maximum number of radios per session
-const maxRadios = 4;
+export const maxRadios = 4;
 
 // Acepted similarity between two callsigns
-const similarityPct = 0.90;
+export const similarityPct = 0.90;
 
 const bands = [
     { label: "PMR",      value: "pmr.70cm-fm", range: {urban: 1,   rural: 3 }, offset: 500,  fontColor: 'green',  pinIcon: "/img/vecteezy-map-pin-green.png"  },
@@ -464,9 +467,13 @@ const sessionOverlap = (s1, s2) => {
     return false;
 }
 
-const findReportableRadioFromContact = (contact, session, radio, operator, center) => {
+const findReportableRadioFromContact = (contact, session, radio) => {
 
     let radio2 = null;
+
+    const operator = contact.operator;
+    const lastSession = contact.sessions.slice(-1);
+    const center = [lastSession.latitude, lastSession.longitude];
 
     const session2 = contact.sessions.find(elem => {
         return sessionOverlap(elem, session);
@@ -493,6 +500,7 @@ const QRXLookupConfig = {
     extraAirTime,
     lessAirTime,
     ghostAirTime,
+    reportableTime,
     maxRadios,
     similarityPct,
     bands,

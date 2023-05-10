@@ -4,7 +4,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { useTranslation } from "react-i18next";
 import React, { useState, createContext, useEffect, useLayoutEffect } from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
+
 import FirebaseAuthService from './FirebaseAuthService';
+import FirebaseFirestoreService from './FirebaseFirestoreService';
+import { SERVER_KEY } from './FirebaseMessagingService';
+
 import QRXLookupConfig from './QRXLookupConfig';
 import LoginForm from './Components/LoginForm';
 import ContactForm from './Components/ContactForm';
@@ -13,10 +17,11 @@ import QRXRadar from './Components/QRXRadar';
 import QRXTable from './Components/QRXTable';
 import QRKReport from './Components/QRKReport';
 import QRXAirTime from './Components/QRXAirTime';
-import FirebaseFirestoreService from './FirebaseFirestoreService';
+
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Toast from 'react-bootstrap/Toast';
+import Image from 'react-bootstrap/Image'
 import ToastContainer from 'react-bootstrap/ToastContainer';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRightFromBracket, faTowerBroadcast, faGear, faFlag } from "@fortawesome/free-solid-svg-icons";
@@ -169,13 +174,19 @@ function App() {
     
     for (let c of contacts || []) {
   
-      for (const s in c.sessions) {
-
-        const session = c.sessions[s];
+      for (const session of c.sessions) {
 
         if (!excludedContactIds.includes(session.sessionId)) {
+
           const detailedSession = QRXLookupConfig.getSessionDetails(session, c.operator, center);
-          sessions.push(detailedSession);
+
+          let maxReportableTime = new Date(session.checkOut);
+          maxReportableTime.setMinutes(
+            maxReportableTime.getMinutes() + QRXLookupConfig.reportableTime
+          );
+  
+          if (session.checkOut > new Date() || maxReportableTime > new Date())
+            sessions.push(detailedSession);
         }
       }
     }
@@ -243,8 +254,6 @@ function App() {
 
     console.log(`%c> Writing 1 record to Firestore.`, 'color: red');
     console.log('\n');
-
-    console.log(updatedContact);
 
     try {
         await FirebaseFirestoreService.updateDocument('contacts', updatedContact);
@@ -478,6 +487,7 @@ function App() {
 
       if (!myContact)
         setMyContact({ ...ContactInitialState, email: user.email });
+      
     }
       
     return () => { 
@@ -499,18 +509,18 @@ function App() {
       const email = change.contact.email;
 
       if (change.type === "added" && !changes.find(elem => elem.email === email)) {
-        console.log("  New contact:", change.contact);
+        // console.log("  New contact:", change.contact);
         changes = [ ...changes,  { ...change.contact } ];
       }
   
       if (change.type === "modified" && changes.findIndex(elem => elem.email === email)) {
-        console.log("  Modified contact: ", change.contact);
+        // console.log("  Modified contact: ", change.contact);
         const idx = contacts.findIndex(elem => elem.email === email);
         changes[idx] = { ...change.contact };
       }
   
       if (change.type === "removed") {
-        console.log("  Removed contact: ", change.contact);
+        // console.log("  Removed contact: ", change.contact);
         changes = [
           ...changes.filter(elem => elem.email !== email)
         ];        
@@ -535,18 +545,18 @@ function App() {
       const reportId = change.report.id;
 
       if (change.type === "added" && !changes.find(elem => elem.id === reportId)) {
-        console.log("  New report:", change.report);
+        // console.log("  New report:", change.report);
         changes = [ ...changes,  { ...change.report } ];
       }
   
       if (change.type === "modified" && changes.findIndex(elem => elem.id === reportId)) {
-        console.log("  Modified report: ", change.report);
+        // console.log("  Modified report: ", change.report);
         const idx = reports.findIndex(elem => elem.id === reportId);
         changes[idx] = { ...change.report };
       }
   
       if (change.type === "removed") {
-        console.log("  Removed report: ", change.report);
+        // console.log("  Removed report: ", change.report);
         changes = [
           ...changes.filter(elem => elem.id !== reportId)
         ];        
@@ -607,7 +617,7 @@ function App() {
         <Row className='header'>
           <Col className='header-center' md>
             {user? (<>
-              <span style={{fontFamily: 'Digital7Mono', fontSize: '250%', color: '#ffff00', margin: 0}}>
+              <span style={{fontFamily: 'Digital7Mono', fontSize: '300%', color: '#ffff00', margin: 0}}>
                 <Button variant={!popUp.showQRKReport? 'primary': 'secondary'} type="button" onClick={toggleShowQRKReport} style={{ marginRight: '.5rem' }}>
                   <FontAwesomeIcon icon={faFlag} size="1x"/>
                 </Button>
@@ -616,7 +626,10 @@ function App() {
                   <FontAwesomeIcon icon={faTowerBroadcast} size="1x"/>
                 </Button>
 
-                <QRXAirTime countDownDate={myLastSession?.checkOut} />
+                <QRXAirTime 
+                  countDownDate={myLastSession?.checkOut} 
+                  IID_KEY={myLastSession?.IIDToken}
+                  SRV_KEY={SERVER_KEY}/>
 
                 <Button variant={!popUp.showContactDetails? 'primary': 'secondary'} type="button" onClick={toggleShowContactDetails} style={{ marginLeft: '.5rem' }}>
                   <FontAwesomeIcon icon={faGear} size="1x"/>
@@ -697,6 +710,9 @@ function App() {
               <center>
                 <b>{t('welcome')}!</b>
                 <h3>{t('appName')} {t('version')} <code>{QRXLookupConfig.appVersion}</code></h3>
+                <Image fluid roundedCircle src="/logo512.png" style={{height:'auto', width:'40%'}}/>
+                <br/>
+                <br/>
                 <b><i>{t('readme.tittle')}?</i></b>
                 <p>{t('readme')}</p>
               </center>

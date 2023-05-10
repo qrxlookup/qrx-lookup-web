@@ -21,10 +21,6 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
         qslSignal: null,        
     });
 
-    const myQRA = contact.operator;
-    const myLastSession = contact.sessions.slice(-1);
-    const myLastPosition = [myLastSession.latitude, myLastSession.longitude];
-
     const sortField = contact.sort.field.toLowerCase();
     const sortDescending = contact.sort.descending;
 
@@ -35,11 +31,10 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
 
         if (radio2.radioId !== report.selectedRadio2?.radioId) {
 
-            let myRadio = QRXLookupConfig.findReportableRadioFromContact(contact, session2, radio2, myQRA, myLastPosition);
+            let myRadio = QRXLookupConfig.findReportableRadioFromContact(contact, session2, radio2);
             let reported = null;
 
             if (myRadio) {
-
                 reported = reports.find(elem => {
                     return (elem.radio1Id === myRadio.radioId && elem.radio2Id === radio2.radioId) ||
                            (elem.radio2Id === myRadio.radioId && elem.radio1Id === radio2.radioId);
@@ -144,7 +139,6 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
         const localeCheckIn = checkIn.toLocaleString(QRXLookupConfig.locales[language]);
         const localeCheckOut = checkOut.toLocaleString(QRXLookupConfig.locales[language]);
 
-        let k = 0;
         radios.forEach((radio) => {
 
             if (!contact.callsigns.includes(radio.callsign)) {
@@ -152,10 +146,10 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
                 let pendingQRK = false;
                 let pendingQSL = false;
                 let waitingQSL = false;
-                let completedQSO = false;
+                let completQSO = false;
     
-                const myRadio = QRXLookupConfig.findReportableRadioFromContact(contact, session, radio, myQRA, myLastPosition);
-    
+                const myRadio = QRXLookupConfig.findReportableRadioFromContact(contact, session, radio);
+                    
                 if (myRadio) {
 
                     const reported = reports.find(elem => {
@@ -163,28 +157,44 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
                                (elem.radio2Id === radio.radioId && elem.radio1Id === myRadio.radioId);
                     });
     
-                    if (!reported) {
-                        pendingQRK = true;
-                    }
+                    // if (!reported) {
+                    //     pendingQRK = true;
+                    // }
     
-                    if (reported && reported.radio2Id === myRadio.radioId) {
-                        pendingQSL = reported?.qrkRadio && reported?.qrkSignal &&
-                                     !reported?.qslRadio && !reported?.qslSignal;
-                    }
+                    // if (reported && reported.radio2Id === myRadio.radioId) {
+                    //     pendingQSL = reported?.qrkRadio && reported?.qrkSignal &&
+                    //                  !reported?.qslRadio && !reported?.qslSignal;
+                    // }
 
-                    if (reported && reported.radio1Id === myRadio.radioId) {
-                        waitingQSL = reported?.qrkRadio && reported?.qrkSignal &&
-                                     !reported?.qslRadio && !reported?.qslSignal;
-                    }
+                    // if (reported && reported.radio1Id === myRadio.radioId) {
+                    //     waitingQSL = reported?.qrkRadio && reported?.qrkSignal &&
+                    //                  !reported?.qslRadio && !reported?.qslSignal;
+                    // }
     
-                    if (reported) {
-                        completedQSO = reported?.qrkRadio && reported?.qrkSignal &&
-                                       reported?.qslRadio && reported?.qslSignal;
-                    }
+                    // if (reported) {
+                    //     completedQSO = reported?.qrkRadio && reported?.qrkSignal &&
+                    //                    reported?.qslRadio && reported?.qslSignal;
+                    // }
+
+                    pendingQRK = [null, undefined].includes(reported);
+    
+                    pendingQSL = reported?.radio2Id === myRadio.radioId && 
+                                 reported?.qrkRadio && !reported?.qslRadio;
+
+                    waitingQSL = reported?.radio1Id === myRadio.radioId && 
+                                 reported?.qrkRadio && !reported?.qslRadio;
+    
+                    completQSO = reported?.qrkRadio && reported?.qslRadio;        
                 }
 
+                // console.log(`  Pending QRK: ${pendingQRK}`);
+                // console.log(`  Pending QSL: ${pendingQSL}`);
+                // console.log(`  Waiting QSL: ${waitingQSL}`);
+                // console.log(`Completed QSO: ${completQSO}`);
+                // console.log('\n');
+
                 const actionableRadio = report?.selectedRadio2?.radioId === radio.radioId && 
-                                        (pendingQRK || pendingQSL);
+                                        (pendingQRK || pendingQSL || waitingQSL || completQSO);
 
                 const [ channel ] = radio.frequency.replace(/\s/g, "").split("|");
 
@@ -194,8 +204,9 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
                             <span style={{ fontSize: '80%' }}>
 
                                 {pendingQRK? <><Badge bg="primary">QRK?</Badge>&nbsp;</>:null}
-                                {pendingQSL? <><Badge bg="primary">QSL?</Badge>&nbsp;</>:null}
-                                {completedQSO? <><Badge bg="primary">QSO</Badge>&nbsp;</>:null}
+                                {pendingQSL? <><Badge bg="warning" text="dark">QSL?</Badge>&nbsp;</>:null}
+                                {waitingQSL? <><Badge bg="secondary">{'!QSL'}</Badge>&nbsp;</>:null}
+                                {completQSO? <><Badge bg="dark">QSO</Badge>&nbsp;</>:null}
 
                                 {`${radio.band} | ${channel}`} {radio.tone? ` | ${radio.tone} `: ''}
                             </span>
@@ -223,15 +234,15 @@ function QRXTable({ contact, reports, activeContactSessions, initializeReport, c
                                         {t('report')}...
                                     </Button>
                                 ):(
-                                    <i>
-                                        {completedQSO || waitingQSL? t('qrkTable.alreadyReported'): t('qrxTable.notReportable')}!
+                                    <i style={{color: 'red'}}>
+                                        {t('qrxTable.notReportable')}!
                                     </i>
                                 )}
                             </>:null}
                         </td>
                     </tr>
                 );
-            } k = k + 1;
+            }
         });
     })
 

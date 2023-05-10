@@ -1,4 +1,4 @@
-import firebase from './FirebaseConfig';
+import { app } from './FirebaseConfig';
 
 // const auth = firebase.auth();
 
@@ -68,7 +68,7 @@ import {
     linkWithPopup
 } from "firebase/auth";
 
-const auth = getAuth(firebase);
+const auth = getAuth(app);
 
 const registerUser = (email, password) => {
     createUserWithEmailAndPassword(auth, email, password)

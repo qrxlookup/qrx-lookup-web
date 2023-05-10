@@ -6,6 +6,7 @@
     "Login":                                   "Login",
     "linkAccounts":                            "Link accounts",
     "noTone":                                  "no tone",
+    "atention":                                "Atention",
     "optional":                                "Optional",
     "mandatory":                               "Mandatory",
     "add":                                     "Add",
@@ -73,9 +74,12 @@
     "reportRadio.R3":                          "R3 - Readable w/ high difficulty",
     "reportRadio.R4":                          "R4 - Readable w/ some difficulty",
     "reportRadio.R5":                          "R5 - Perfectly readable",
+    "report.howReceivedBy":                    "How my station was received by",
+    "report.howReceivedByMe":                  "How my station received",
     "profile.about":                           "Profile options",
     "profile.SortField":                       "contact list sort criteria",
     "profile.incomplete":                      "Incomplete profile",
+    "airTime.expiring":                        "AirTime will expire in less than",
     "readme.tittle":                           "What's new",
     "readme":                                  "Login and share your station and QTH details and find out, through a real-time map, other QRX operators on PMR and CB radios, including details such as modulation, frequency and tone. Optionally, enable reachability perimeter guide and provide your QRA, keeping in mind that such information will be made availble on the map pin's details representing your station."
 }

@@ -15,6 +15,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFloppyDisk, faLocationCrosshairs } from "@fortawesome/free-solid-svg-icons";
 
 import { ContactSessionInitialState } from '../App';
+import { requestNotificationPermission, requestIIDToken, onMessageListener } from '../FirebaseMessagingService';
   
 // eslint-disable-next-line
 const reverseGeocoding = async (latitude, longitude) => {
@@ -66,7 +67,6 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
         { ...sessions[sessionsLength - 1] }:
         { ...ContactSessionInitialState };
 
-    // const callsigns = contact? [ ...contact?.callsigns?.sort() ]: [];
     const callsigns = [ ...contact?.callsigns?.sort() || [] ];
 
     const bands = QRXLookupConfig.bands;
@@ -222,9 +222,6 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
 
             setForm({
                 ...form,
-                // radios: update(form.radios, {$push: [
-                //     { callsign: filterContactCallsigns(null)[0], band: '', frequency: '', tone: ''}
-                // ]}),
                 radios: update(form.radios, {$push: [
                     { radioId: crypto.randomUUID(), callsign: callsigns[0], band: '', frequency: '', tone: ''}
                 ]}),                
@@ -363,6 +360,9 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                 checkOut: lastSession.checkOut? new Date(lastSession.checkOut): new Date(),
             };
 
+            if (lastSession.IIDToken)
+                updatedSession.IIDToken = lastSession.IIDToken;
+
             if (lastSession.latitude !== updatedSession.latitude ||
                 lastSession.longitude !== updatedSession.longitude) {
 
@@ -394,11 +394,13 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
             }
 
             console.log(`+ Changed radio session: ${changedRadioSession(lastSession, updatedSession)}`);
-            console.log('\n');
+            console.log('\n');            
 
             const lastSessionIdx = sessionsLength > 0? sessionsLength - 1: 0;
 
-            if (new Date() > lastSession.checkOut || changedRadioSession(lastSession, updatedSession)) {
+            const newSession = (new Date() > lastSession.checkOut || changedRadioSession(lastSession, updatedSession));
+
+            if (newSession) {
 
                 if (sessionsLength > 0 && sessions[lastSessionIdx].checkOut > new Date()) {
                     sessions[lastSessionIdx].checkOut = new Date();
@@ -413,27 +415,38 @@ function ContactSessionForm({ contact, handleUpdateContact, validCallsign }) {
                     updatedSession.checkOut = new Date(updatedSession.checkIn);
                 }
 
-                updatedSession.checkOut = adjustAirTime(form.airTime, updatedSession.checkOut);
-
-                sessions = [ ...sessions, {...updatedSession} ];
+                let radios = [ ...updatedSession.radios || [] ];
+                for (let r = 0; r < radios.length; r++)
+                    radios[r].radioId = crypto.randomUUID();
+                updatedSession.radios = [ ...radios ];
 
                 console.log(`+ First | New session: ${updatedSession.sessionId}`);
                 console.log('\n');
                 
             } else {
 
-                updatedSession.checkOut = adjustAirTime(form.airTime, updatedSession.checkOut);
-
-                sessions[lastSessionIdx] = { ...updatedSession };
-
                 console.log(`+ Current session: ${updatedSession.sessionId}`);
                 console.log('\n');
+            }
+
+            updatedSession.checkOut = adjustAirTime(form.airTime, updatedSession.checkOut);
+            
+            requestNotificationPermission();
+            if (Notification.permission === 'granted') {                
+                updatedSession.IIDToken = await requestIIDToken();
+                onMessageListener();
+            }
+
+            if (newSession) {
+                sessions = [ ...sessions, {...updatedSession} ];
+            } else {
+                sessions[lastSessionIdx] = { ...updatedSession };
             }
 
             let updatedContact = {
                 ...contact,
                 sessions: [ ...sessions ],
-            };
+            };            
             
             handleUpdateContact(updatedContact);
         }

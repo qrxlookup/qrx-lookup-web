@@ -6,6 +6,7 @@
     "Login":                                   "Entrar",
     "linkAccounts":                            "Associar contas",
     "noTone":                                  "sem tom",
+    "atention":                                "Atenção",
     "optional":                                "Opcional",
     "mandatory":                               "Obrigatório",
     "add":                                     "Adicionar",
@@ -73,9 +74,12 @@
     "reportRadio.R3":                          "R3 - Perceptível c/ muita dificuldade",
     "reportRadio.R4":                          "R4 - Perceptível c/ alguma dificuldade",
     "reportRadio.R5":                          "R5 - Perfeitamente Perceptível",
+    "report.howReceivedBy":                    "Como a minha estação foi recebida por",
+    "report.howReceivedByMe":                  "Como a minha estação recebeu",
     "profile.about":                           "Opções de perfil",
     "profile.SortField":                       "Criterio de ordenação da lista de contatos",
     "profile.incomplete":                      "Perfil incompleto",
+    "airTime.expiring":                        "Tempo no ar vair expirar em menos de",
     "readme.tittle":                           "Novidades",
     "readme":                                  "Entre e partilhe os detalhes da sua estação e QTH e descubra, através de uma mapa em tempo real, outros operadores QRX de rádios PMR e CB, incluindo detalhes como modelação, frequência e tom. Opcionalmente, ative o perimetro de alcance e o seu QRA, estando consciente que esta informação aparecerá no pin do mapa que representa a sua estação."
 }

@@ -57,18 +57,20 @@ function LoginForm() {
     // }
 
     function handleLoginWithGoogle() {
+
         try {
             FirebaseAuthService.loginWithGoogle(firstLogin && linkAccounts);
-            localStorage.setItem("firstLogin", Date());
+            localStorage.setItem("firstLogin", Date());            
         } catch (error) {
             alert(error.message);
         }
     }
 
-    function handleLoginWithFacebook() {
+    function handleLoginWithFacebook() {                
+
         try {
             FirebaseAuthService.loginWithFacebook(firstLogin && linkAccounts);
-            localStorage.setItem("firstLogin", Date());
+            localStorage.setItem("firstLogin", Date());            
         } catch (error) {
             alert(error.message);
         }

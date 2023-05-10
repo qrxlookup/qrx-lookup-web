@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 // import 'firebase/compat/firestore';
 // import 'firebase/compat/storage';
 
-const config = {
+export const config = {
     apiKey: process.env.REACT_APP_API_KEY,
     authDomain: process.env.REACT_APP_AUTH_DOMAIN,
     projectId: process.env.REACT_APP_PROJECT_ID,
@@ -13,6 +13,4 @@ const config = {
     measurementId: process.env.REACT_APP_MEASUREMENT_ID,
 };
 
-const firebase = initializeApp(config);
-
-export default firebase;
+export const app = initializeApp(config);

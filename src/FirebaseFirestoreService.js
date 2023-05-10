@@ -1,7 +1,7 @@
-import firebase from './FirebaseConfig';
+import { app } from './FirebaseConfig';
 import { getFirestore, collection, query, onSnapshot, serverTimestamp, doc, addDoc, setDoc, getDoc, getDocs } from "firebase/firestore";
 
-const db = getFirestore(firebase);
+const db = getFirestore(app);
 
 const createDocument = async (collectName, doc) => {
     return await addDoc(collection(db, collectName), doc);
